@@ -1,4 +1,4 @@
-#include <arch/gdt.hpp>
+#include <gdt.hpp>
 #include <stdint.h>
 
 struct GDTEntry {

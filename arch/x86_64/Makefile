@@ -5,7 +5,7 @@ ARCH = x86_64
 REPODIR   := $(shell realpath ../../)
 COMMONDIR := ${REPODIR}/common
 ARCHDIR   := $(shell realpath .)
-EXTRADIR  := ${REPODIR}/extra
+BOOTDIR   := ${ARCHDIR}/bootload
 
 # Outputs
 KERNEL    := ${REPODIR}/lyre.elf
@@ -51,20 +51,20 @@ ${KERNEL}: ${OBJ}
 test: ${IMAGE}
 	${QEMU} ${QEMUHARDFLAGS} -hda ${IMAGE}
 
-${IMAGE}: ${EXTRADIR}/qloader2 ${KERNEL}
+${IMAGE}: ${BOOTDIR}/qloader2 ${KERNEL}
 	dd if=/dev/zero bs=1M count=0 seek=64 of=${IMAGE}
 	parted -s ${IMAGE} mklabel msdos
 	parted -s ${IMAGE} mkpart primary 1 100%
 	echfs-utils -m -p0 ${IMAGE} quick-format 32768
 	echfs-utils -m -p0 ${IMAGE} import ${KERNEL} `basename ${KERNEL}`
-	echfs-utils -m -p0 ${IMAGE} import ${EXTRADIR}/qloader2.cfg qloader2.cfg
-	${EXTRADIR}/qloader2/qloader2-install ${EXTRADIR}/qloader2/qloader2.bin ${IMAGE}
+	echfs-utils -m -p0 ${IMAGE} import ${BOOTDIR}/qloader2.cfg qloader2.cfg
+	${BOOTDIR}/qloader2/qloader2-install ${BOOTDIR}/qloader2/qloader2.bin ${IMAGE}
 
-${EXTRADIR}/qloader2:
-	git clone https://github.com/qword-os/qloader2.git ${EXTRADIR}/qloader2
+${BOOTDIR}/qloader2:
+	git clone https://github.com/qword-os/qloader2.git ${BOOTDIR}/qloader2
 
 clean:
 	rm -rf ${OBJ} ${KERNEL} ${IMAGE}
 
 distclean: clean
-	rm -rf ${EXTRADIR}/qloader2
+	rm -rf ${BOOTDIR}/qloader2

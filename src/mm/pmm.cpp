@@ -3,6 +3,7 @@
 #include <mm/pmm.hpp>
 #include <mm/vmm.hpp>
 #include <lib/bitmap.hpp>
+#include <lib/math.hpp>
 
 static Bitmap bitmap(nullptr);
 static size_t last_used_index = 0;
@@ -20,7 +21,7 @@ void pmm_init(StivaleMemmap memmap) {
             highest_page = top;
     }
 
-    size_t bitmap_size = (highest_page / PAGE_SIZE) / 8;
+    size_t bitmap_size = div_roundup(highest_page, PAGE_SIZE) / 8;
 
     // Second, find a location with enough free pages to host the bitmap.
     for (size_t i = 0; i < memmap.entries; i++) {
@@ -30,6 +31,7 @@ void pmm_init(StivaleMemmap memmap) {
         if (memmap.address[i].size >= bitmap_size) {
             void *bitmap_addr = (void *)(memmap.address[i].base + MEM_PHYS_OFFSET);
 
+
             Bitmap _bitmap(bitmap_addr);
             bitmap = _bitmap;
 
@@ -38,7 +40,7 @@ void pmm_init(StivaleMemmap memmap) {
 
             // Initialise entire bitmap to 1 (non-free)
             for (uintptr_t j = 0; j < bitmap_size; j++)
-                ((uint8_t *)bitmap_addr)[j] = 1;
+                ((uint8_t *)bitmap_addr)[j] = 0xff;
 
             break;
         }

@@ -121,4 +121,3 @@ void gdt_load_tss(size_t addr) {
     gdt.tss.base_upper32 = (uint32_t)(addr >> 32);
     gdt.tss.reserved     = 0;
 }
-

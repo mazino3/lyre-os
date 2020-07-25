@@ -30,8 +30,8 @@ LDHARDFLAGS   := ${LDFLAGS} -nostdlib -no-pie -z max-page-size=0x1000
 QEMUHARDFLAGS := ${QEMUFLAGS}
 
 # Source to compile.
-CXXSOURCE := $(shell find ${COMMONDIR} ${ARCHDIR} -type f -name '*.cpp')
-ASMSOURCE := $(shell find ${ARCHDIR} -type f -name '*.asm')
+CXXSOURCE := $(shell find ${COMMONDIR} ${ARCHDIR} -type f -name '*.cpp' | grep -v bootload)
+ASMSOURCE := $(shell find ${ARCHDIR} -type f -name '*.asm' | grep -v bootload)
 OBJ       := $(CXXSOURCE:.cpp=.o) $(ASMSOURCE:.asm=.o)
 
 # Where the fun begins!

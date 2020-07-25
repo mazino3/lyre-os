@@ -1,0 +1,5 @@
+qloader2
+*.o
+*.hdd
+*.bin
+*.elf

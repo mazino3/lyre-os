@@ -6,7 +6,7 @@ template <class T> class DynArray {
     size_t count, capacity;
     char *data;
 
-    size_t calculate_capacity(size_t size) {
+    inline size_t calculate_capacity(size_t size) {
         size_t result = 1;
         while (size < result) {
             result *= 2;
@@ -14,7 +14,7 @@ template <class T> class DynArray {
         return result;
     }
 
-    bool relocate(size_t new_capacity) {
+    inline bool relocate(size_t new_capacity) {
         char *new_data = new char[sizeof(T) * new_capacity];
         if (new_data == nullptr) {
             return false;
@@ -28,13 +28,13 @@ template <class T> class DynArray {
     }
 
 public:
-    DynArray() {
+    inline DynArray() {
         count = 0;
         capacity = 0;
         data = nullptr;
     }
 
-    bool push_back(const T& elem) {
+    inline bool push_back(const T& elem) {
         if (count == capacity) {
             if (!relocate(calculate_capacity(count + 1))) {
                 return false;
@@ -45,7 +45,7 @@ public:
         return true;
     }
 
-    bool pop_back() {
+    inline bool pop_back() {
         if (count == 0) {
             return false;
         }
@@ -58,9 +58,34 @@ public:
         return true;
     }
 
-    size_t size() { return size; }
+    inline bool resize(size_t new_size) {
+        if (new_size == count) {
+            return true;
+        } else if (new_size > count) {
+            size_t new_capacity = calculate_capacity(new_size);
+            if (new_capacity != capacity) {
+                if (!relocate(new_capacity)) {
+                    return false;
+                }
+            }
+            count = new_size;
+        } else {
+            size_t old_size = count;
+            count = new_size;
+            size_t new_capacity = calculate_capacity(new_size);
+            if (new_capacity != capacity) {
+                if(!relocate(new_capacity)) {
+                    count = old_size;
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
 
-    T& operator[](size_t ind) {
+    inline size_t size() { return size; }
+
+    inline T& operator[](size_t ind) {
         return ((T*)data)[ind];
     }
 };

@@ -31,7 +31,6 @@ void pmm_init(StivaleMemmap memmap) {
         if (memmap.address[i].size >= bitmap_size) {
             void *bitmap_addr = (void *)(memmap.address[i].base + MEM_PHYS_OFFSET);
 
-
             Bitmap _bitmap(bitmap_addr);
             bitmap = _bitmap;
 

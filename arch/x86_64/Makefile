@@ -12,7 +12,7 @@ KERNEL    := ${REPODIR}/lyre.elf
 IMAGE     := ${REPODIR}/lyre.hdd
 
 # Compilers, several programs and their flags.
-CXXC = g++
+CXX  = g++
 AS   = nasm
 LD   = ld
 QEMU = qemu-system-x86_64
@@ -43,7 +43,7 @@ ${KERNEL}: ${OBJ}
 	${LD} ${LDHARDFLAGS} ${OBJ} -T ${ARCHDIR}/linker.ld -o $@
 
 %.o: %.cpp
-	${CXXC} ${CXXHARDFLAGS} -I${ARCHDIR} -I${COMMONDIR} -c $< -o $@
+	${CXX} ${CXXHARDFLAGS} -I${ARCHDIR} -I${COMMONDIR} -c $< -o $@
 
 %.o: %.asm
 	${AS} ${ASHARDFLAGS} -I${ARCHDIR} -I${COMMONDIR} $< -o $@

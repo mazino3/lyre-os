@@ -16,5 +16,5 @@ struct MemmapEntry {
     MemmapEntryType type;
 };
 
-uint64_t arch_mmap_get_entries_count();
-void arch_mmap_get_entry(struct MemmapEntry* buf, uint64_t index);
+uint64_t arch_memmap_get_entries_count();
+void arch_memmap_get_entry(struct MemmapEntry *buf, uint64_t index);

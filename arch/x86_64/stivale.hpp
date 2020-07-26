@@ -9,11 +9,11 @@ struct StivaleModule {
 } __attribute__((packed));
 
 enum StivaleMemmapEntryType : uint32_t {
-    USABLE      = 1,
-    RESERVED    = 2,
-    ACPIRECLAIM = 3,
-    ACPINVS     = 4,
-    KERNEL      = 10
+    STIVALE_USABLE      = 1,
+    STIVALE_RESERVED    = 2,
+    STIVALE_ACPIRECLAIM = 3,
+    STIVALE_ACPINVS     = 4,
+    STIVALE_KERNEL      = 10
 };
 
 struct StivaleMemmapEntry {

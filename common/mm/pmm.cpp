@@ -12,7 +12,7 @@ static uintptr_t highest_page = 0;
 void pmm_init(StivaleMemmap memmap) {
     // First, calculate how big the bitmap needs to be.
     for (size_t i = 0; i < memmap.entries; i++) {
-        if (memmap.address[i].type != USABLE)
+        if (memmap.address[i].type != STIVALE_USABLE)
             continue;
 
         uintptr_t top = memmap.address[i].base + memmap.address[i].size;
@@ -25,7 +25,7 @@ void pmm_init(StivaleMemmap memmap) {
 
     // Second, find a location with enough free pages to host the bitmap.
     for (size_t i = 0; i < memmap.entries; i++) {
-        if (memmap.address[i].type != USABLE)
+        if (memmap.address[i].type != STIVALE_USABLE)
             continue;
 
         if (memmap.address[i].size >= bitmap_size) {
@@ -47,7 +47,7 @@ void pmm_init(StivaleMemmap memmap) {
 
     // Third, populate free bitmap entries according to memory map.
     for (size_t i = 0; i < memmap.entries; i++) {
-        if (memmap.address[i].type != USABLE)
+        if (memmap.address[i].type != STIVALE_USABLE)
             continue;
 
         for (uintptr_t j = 0; j < memmap.address[i].size; j += PAGE_SIZE)

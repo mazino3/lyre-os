@@ -1,9 +1,9 @@
 #include <mm/memmap.hpp>
 #include <stivale.hpp>
 
-static Stivale* stivale_info;
+static Stivale *stivale_info;
 
-void memmap_init(struct Stivale* info) {
+void memmap_init(struct Stivale *info) {
 	stivale_info = info;
 }
 

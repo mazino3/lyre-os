@@ -4,10 +4,13 @@
 #include <mm/vmm.hpp>
 #include <lib/bitmap.hpp>
 #include <lib/math.hpp>
+#include <lib/lock.hpp>
 
 static Bitmap bitmap(nullptr);
 static size_t last_used_index = 0;
 static uintptr_t highest_page = 0;
+
+static Lock pmm_lock;
 
 void pmm_init(StivaleMemmap memmap) {
     // First, calculate how big the bitmap needs to be.
@@ -76,6 +79,8 @@ static void *inner_alloc(size_t count, size_t limit) {
 }
 
 void *pmm_alloc(size_t count) {
+    pmm_lock.acquire();
+
     size_t l = last_used_index;
     void *ret = inner_alloc(count, highest_page / PAGE_SIZE);
     if (ret == nullptr) {
@@ -83,6 +88,7 @@ void *pmm_alloc(size_t count) {
         ret = inner_alloc(count, l);
     }
 
+    pmm_lock.release();
     return ret;
 }
 
@@ -101,7 +107,9 @@ void *pmm_allocz(size_t count) {
 }
 
 void pmm_free(void *ptr, size_t count) {
+    pmm_lock.acquire();
     size_t page = (size_t)ptr / PAGE_SIZE;
     for (size_t i = page; i < page + count; i++)
         bitmap.unset(i);
+    pmm_lock.release();
 }

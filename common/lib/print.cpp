@@ -3,6 +3,8 @@
 #include <stdarg.h>
 #include <lib/print.hpp>
 #include <lib/debug.hpp>
+#include <lib/dmesg.hpp>
+#include <lib/builtins.h>
 
 static const char *base_digits = "0123456789abcdef";
 
@@ -109,7 +111,9 @@ void print(const char *fmt, ...) {
     char buf[MAX_PRINT_BUF_SIZE];
     vsnprint(buf, MAX_PRINT_BUF_SIZE, fmt, args);
 
-    // For now we directly log to debug, TODO add dmesg handle
+    class DMesg dmesg;
+    dmesg.write(buf, strlen(buf));
+
     debug_log(buf);
 
     va_end(args);

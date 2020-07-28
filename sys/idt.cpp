@@ -1,6 +1,6 @@
 #include <stddef.h>
 #include <stdint.h>
-#include <interrupts/idt.hpp>
+#include <sys/idt.hpp>
 #include <lib/lock.hpp>
 
 static Lock idt_lock;

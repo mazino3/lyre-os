@@ -1,5 +1,5 @@
-#include <gdt.hpp>
 #include <stdint.h>
+#include <sys/gdt.hpp>
 
 struct GDTEntry {
     uint16_t limit;

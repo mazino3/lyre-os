@@ -1,7 +1,7 @@
 #pragma once
 
 #include <stddef.h>
-#include <stivale.hpp>
+#include <lib/stivale.hpp>
 
 void pmm_init(StivaleMemmap memmap);
 void *pmm_alloc(size_t count);

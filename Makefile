@@ -1,11 +1,6 @@
-# Some useful constants.
-ARCH = x86_64
-
 # Directories
-REPODIR   := $(shell realpath ../../)
-COMMONDIR := ${REPODIR}/common
-ARCHDIR   := $(shell realpath .)
-BOOTDIR   := ${ARCHDIR}/bootload
+REPODIR   := $(shell realpath .)
+BOOTDIR   := ${REPODIR}/bootload
 
 # Outputs
 KERNEL    := ${REPODIR}/lyre.elf
@@ -30,8 +25,8 @@ LDHARDFLAGS   := ${LDFLAGS} -nostdlib -no-pie -z max-page-size=0x1000
 QEMUHARDFLAGS := ${QEMUFLAGS}
 
 # Source to compile.
-CXXSOURCE := $(shell find ${COMMONDIR} ${ARCHDIR} -type f -name '*.cpp' | grep -v bootload)
-ASMSOURCE := $(shell find ${ARCHDIR} -type f -name '*.asm' | grep -v bootload)
+CXXSOURCE := $(shell find ${REPODIR} -type f -name '*.cpp' | grep -v bootload)
+ASMSOURCE := $(shell find ${REPODIR} -type f -name '*.asm' | grep -v bootload)
 OBJ       := $(CXXSOURCE:.cpp=.o) $(ASMSOURCE:.asm=.o)
 
 # Where the fun begins!
@@ -40,13 +35,13 @@ OBJ       := $(CXXSOURCE:.cpp=.o) $(ASMSOURCE:.asm=.o)
 all: ${KERNEL}
 
 ${KERNEL}: ${OBJ}
-	${LD} ${LDHARDFLAGS} ${OBJ} -T ${ARCHDIR}/linker.ld -o $@
+	${LD} ${LDHARDFLAGS} ${OBJ} -T ${REPODIR}/linker.ld -o $@
 
 %.o: %.cpp
-	${CXX} ${CXXHARDFLAGS} -I${ARCHDIR} -I${COMMONDIR} -c $< -o $@
+	${CXX} ${CXXHARDFLAGS} -I${REPODIR} -c $< -o $@
 
 %.o: %.asm
-	${AS} ${ASHARDFLAGS} -I${ARCHDIR} -I${COMMONDIR} $< -o $@
+	${AS} ${ASHARDFLAGS} -I${REPODIR} $< -o $@
 
 test: ${IMAGE}
 	${QEMU} ${QEMUHARDFLAGS} -hda ${IMAGE}

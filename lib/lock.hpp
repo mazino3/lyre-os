@@ -5,18 +5,18 @@
 class Lock {
 
 private:
-    uint8_t lock = 0;
+    uint32_t lock = 0;
 
 public:
     inline void acquire() {
         asm volatile (
-            "1: lock bts $0, (%0)\n\t"
+            "1: lock btsd %0, 0\n\t"
             "jnc 1f\n\t"
             "pause\n\t"
             "jmp 1b\n\t"
             "1:\n\t"
+            : "+m" (this->lock)
             :
-            : "r" (&this->lock)
             : "memory"
         );
     }
@@ -24,9 +24,9 @@ public:
     inline bool test_and_acquire() {
         bool ret;
         asm volatile (
-            "lock bts $0, (%1)\n\t"
-            : "=@ccc" (ret)
-            : "r" (&this->lock)
+            "lock btsd %0, 0\n\t"
+            : "+m" (this->lock), "=@ccc" (ret)
+            :
             : "memory"
         );
         return ret;
@@ -34,9 +34,9 @@ public:
 
     inline void release() {
         asm volatile (
-            "lock btr $0, (%0)\n\t"
+            "lock btrd %0, 0\n\t"
+            : "+m" (this->lock)
             :
-            : "r" (&this->lock)
             : "memory"
         );
     }

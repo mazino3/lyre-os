@@ -17,9 +17,9 @@ ASFLAGS   =
 LDFLAGS   = -gc-sections -O2
 QEMUFLAGS = -m 1G -smp 4 -debugcon stdio -enable-kvm -cpu host
 
-CXXHARDFLAGS := ${CXXFLAGS} -std=c++11 -fno-pic -mno-sse -mno-sse2 -mno-mmx \
-    -mno-80387 -mno-red-zone -mcmodel=kernel -ffreestanding -fno-stack-protector \
-    -fno-omit-frame-pointer -fno-rtti -fno-exceptions
+CXXHARDFLAGS := ${CXXFLAGS} -std=c++11 -masm=intel -fno-pic -mno-80387 -mno-mmx \
+    -mno-sse -mno-sse2 -mno-red-zone -mcmodel=kernel -ffreestanding \
+    -fno-stack-protector -fno-omit-frame-pointer -fno-rtti -fno-exceptions
 ASHARDFLAGS   := ${ASFLAGS} -felf64
 LDHARDFLAGS   := ${LDFLAGS} -nostdlib -no-pie -z max-page-size=0x1000
 QEMUHARDFLAGS := ${QEMUFLAGS}

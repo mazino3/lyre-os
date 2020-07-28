@@ -15,7 +15,7 @@ public:
     bool is_set(size_t bit) {
         bool ret;
         asm volatile (
-            "bt %1, (%2)"
+            "bt [%2], %1"
             : "=@ccc" (ret)
             : "r" (bit), "r" (bitmap)
             : "memory"
@@ -26,7 +26,7 @@ public:
     bool set(size_t bit) {
         bool ret;
         asm volatile (
-            "bts %1, (%2)"
+            "bts [%2], %1"
             : "=@ccc" (ret)
             : "r" (bit), "r" (bitmap)
             : "memory"
@@ -37,7 +37,7 @@ public:
     bool unset(size_t bit) {
         bool ret;
         asm volatile (
-            "btr %1, (%2)"
+            "btr [%2], %1"
             : "=@ccc" (ret)
             : "r" (bit), "r" (bitmap)
             : "memory"

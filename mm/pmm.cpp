@@ -5,8 +5,9 @@
 #include <lib/bitmap.hpp>
 #include <lib/math.hpp>
 #include <lib/lock.hpp>
+#include <lib/builtins.h>
 
-static Bitmap bitmap(nullptr);
+static Bitmap bitmap;
 static size_t last_used_index = 0;
 static uintptr_t highest_page = 0;
 
@@ -34,15 +35,13 @@ void pmm_init(StivaleMemmap memmap) {
         if (memmap.address[i].size >= bitmap_size) {
             void *bitmap_addr = (void *)(memmap.address[i].base + MEM_PHYS_OFFSET);
 
-            Bitmap _bitmap(bitmap_addr);
-            bitmap = _bitmap;
+            // Initialise entire bitmap to 1 (non-free)
+            memset(bitmap_addr, 0xff, bitmap_size);
+
+            bitmap.set_bitmap(bitmap_addr);
 
             memmap.address[i].size -= bitmap_size;
             memmap.address[i].base += bitmap_size;
-
-            // Initialise entire bitmap to 1 (non-free)
-            for (uintptr_t j = 0; j < bitmap_size; j++)
-                ((uint8_t *)bitmap_addr)[j] = 0xff;
 
             break;
         }

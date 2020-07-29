@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stddef.h>
+#include <lib/asm.hpp>
 
 class Bitmap {
 
@@ -8,16 +9,16 @@ private:
     void *bitmap;
 
 public:
-    Bitmap(void *bitmap) {
+    void set_bitmap(void *bitmap) {
         this->bitmap = bitmap;
     }
 
     bool is_set(size_t bit) {
         bool ret;
         asm volatile (
-            "bt [%2], %1"
+            "bt %1, %2"
             : "=@ccc" (ret)
-            : "r" (bit), "r" (bitmap)
+            : "m" (FLAT_PTR(bitmap)), "r" (bit)
             : "memory"
         );
         return ret;
@@ -26,9 +27,9 @@ public:
     bool set(size_t bit) {
         bool ret;
         asm volatile (
-            "bts [%2], %1"
-            : "=@ccc" (ret)
-            : "r" (bit), "r" (bitmap)
+            "bts %1, %2"
+            : "=@ccc" (ret), "+m" (FLAT_PTR(bitmap))
+            : "r" (bit)
             : "memory"
         );
         return ret;
@@ -37,9 +38,9 @@ public:
     bool unset(size_t bit) {
         bool ret;
         asm volatile (
-            "btr [%2], %1"
-            : "=@ccc" (ret)
-            : "r" (bit), "r" (bitmap)
+            "btr %1, %2"
+            : "=@ccc" (ret), "+m" (FLAT_PTR(bitmap))
+            : "r" (bit)
             : "memory"
         );
         return ret;

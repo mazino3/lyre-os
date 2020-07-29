@@ -11,6 +11,14 @@ void operator delete(void *ptr) {
     free(ptr);
 }
 
+void *operator new[](size_t size) {
+    return alloc(size);
+}
+
+void operator delete[](void *ptr) {
+    free(ptr);
+}
+
 extern "C" {
 
 void *memcpy(void *dest, const void *src, size_t n) {

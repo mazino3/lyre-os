@@ -18,6 +18,30 @@ PCIDevice::PCIDevice(uint8_t b, uint8_t d, uint8_t f, uint8_t c, uint8_t sc,
     prog_if  = pi;
 }
 
+uint8_t PCIDevice::get_bus() const {
+    return bus;
+}
+
+uint8_t PCIDevice::get_device() const {
+    return device;
+}
+
+uint8_t PCIDevice::get_function() const {
+    return function;
+}
+
+uint8_t PCIDevice::get_class() const {
+    return _class;
+}
+
+uint8_t PCIDevice::get_subclass() const {
+    return subclass;
+}
+
+uint8_t PCIDevice::get_prog_if() const {
+    return prog_if;
+}
+
 void PCIDevice::prepare_config(uint32_t offset) {
     uint32_t address = (bus << 16) | (device << 11) | (function << 8)
                      | (offset & ~((uint32_t)(3))) | 0x80000000;
@@ -54,7 +78,7 @@ void PCIDevice::writed(uint32_t offset, uint32_t value) {
     outd(0xcfc + (offset & 3), value);
 }
 
-int PCIDevice::read_bar(size_t bar, PCIDeviceBar *out) {
+int PCIDevice::read_bar(size_t bar, PCIDeviceBar &out) {
     if (bar > 5) {
         return -1;
     }
@@ -94,10 +118,7 @@ int PCIDevice::read_bar(size_t bar, PCIDeviceBar *out) {
 
     size = ((bar_size_high << 32) | bar_size_low) & ~(is_mmio ? (0b1111) : (0b11));
     size = ~size + 1;
-
-    if (out) {
-        *out = (PCIDeviceBar){base, size, is_mmio, is_prefetchable};
-    }
+    out  = (PCIDeviceBar){base, size, is_mmio, is_prefetchable};
 
     return 0;
 }
@@ -162,17 +183,24 @@ void pci_init() {
     print("pci: Detected %U PCI devices:\n", len);
     for (size_t i = 0; i < len; i++) {
         print("pci: Device %U:\n", i);
-        print("pci: ..Bus:      %U\n", device_list[i].bus);
-        print("pci: ..Device:   %U\n", device_list[i].device);
-        print("pci: ..Function: %X\n", device_list[i].function);
+        print("pci: ..Bus:      %U\n", device_list[i].get_bus());
+        print("pci: ..Device:   %U\n", device_list[i].get_device());
+        print("pci: ..Function: %X\n", device_list[i].get_function());
+        print("pci: ..Class:    %X\n", device_list[i].get_class());
+        print("pci: ..Subclass: %X\n", device_list[i].get_subclass());
+        print("pci: ..Prog IF:  %X\n", device_list[i].get_prog_if());
     }
 }
 
 PCIDevice *pci_get_device(uint8_t cl, uint8_t subcl, uint8_t prog_if) {
     auto len = device_list.length();
     for (size_t i = 0; i < len; i++) {
-        if (device_list[i]._class  == cl && device_list[i].subclass == subcl &&
-            device_list[i].prog_if == prog_if) {
+        auto current_class    = device_list[i].get_class();
+        auto current_subclass = device_list[i].get_subclass();
+        auto current_prog_if  = device_list[i].get_prog_if();
+
+        if (current_class == cl && current_subclass == subcl &&
+            current_prog_if == prog_if) {
             return &device_list[i];
         }
     }

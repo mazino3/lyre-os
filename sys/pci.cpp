@@ -123,6 +123,66 @@ int PCIDevice::read_bar(size_t bar, PCIDeviceBar &out) {
     return 0;
 }
 
+int PCIDevice::register_msi(uint8_t vector, uint8_t lapic_id) {
+    uint8_t off = 0;
+
+    uint32_t config_4  = readd(PCI_HAS_CAPS);
+    uint8_t  config_34 = readb(PCI_CAPS);
+
+    if ((config_4 >> 16) & (1 << 4)) {
+        uint8_t cap_off = config_34;
+
+        while (cap_off) {
+            uint8_t cap_id   = readb(cap_off);
+            uint8_t cap_next = readb(cap_off + 1);
+
+            switch (cap_id) {
+                case 0x05: {
+                    print("pci: device has msi support\n");
+                    off = cap_off;
+                    break;
+                }
+            }
+            cap_off = cap_next;
+        }
+    }
+
+    if (off == 0) {
+        print("pci: device does not support msi\n");
+        return 0;
+    }
+
+    uint16_t msi_opts = readw(off + MSI_OPT);
+    if (msi_opts & MSI_64BIT_SUPPORTED) {
+        msi_data_t data    = {.raw = 0};
+        msi_address_t addr = {.raw = 0};
+        addr.raw = readw(off + MSI_ADDR_LOW);
+        data.raw = readw(off + MSI_DATA_64);
+        data.vector = vector;
+        //Fixed delivery mode
+        data.delivery_mode = 0;
+        addr.base_address = 0xFEE;
+        addr.destination_id = lapic_id;
+        writed(off + MSI_ADDR_LOW, addr.raw);
+        writed(off + MSI_DATA_64, data.raw);
+    } else {
+        msi_data_t data    = {.raw = 0};
+        msi_address_t addr = {.raw = 0};
+        addr.raw = readw(off + MSI_ADDR_LOW);
+        data.raw = readw(off + MSI_DATA_32);
+        data.vector = vector;
+        //Fixed delivery mode
+        data.delivery_mode = 0;
+        addr.base_address = 0xFEE;
+        addr.destination_id = lapic_id;
+        writed(off + MSI_ADDR_LOW, addr.raw);
+        writed(off + MSI_DATA_32, data.raw);
+    }
+    msi_opts |= 1;
+    writew(off + MSI_OPT, msi_opts);
+    return 1;
+}
+
 static void pci_check_bus(uint8_t bus);
 
 static void pci_check_function(uint8_t bus, uint8_t slot, uint8_t func) {

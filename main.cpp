@@ -1,6 +1,7 @@
 #include <sys/gdt.hpp>
 #include <sys/idt.hpp>
 #include <sys/pci.hpp>
+#include <sys/apic.hpp>
 #include <mm/pmm.hpp>
 #include <lib/stivale.hpp>
 #include <lib/dmesg.hpp>
@@ -15,6 +16,7 @@ extern "C" void main(Stivale *sti) {
     print("Lyre says hello world!\n");
 
     acpi_init((RSDP *)sti->rsdp);
+    apic_init();
     pci_init();
 
     for (;;) {

@@ -23,22 +23,22 @@ void init_madt() {
         switch (*(madt_ptr)) {
             case 0:
                 // processor local APIC
-                print("acpi/madt: Found local APIC\n");
+                print("acpi/madt: Found local APIC #%U\n", madt_local_apics.length());
                 madt_local_apics.push_back((MADTLocalApic *)madt_ptr);
                 break;
             case 1:
                 // I/O APIC
-                print("acpi/madt: Found I/O APIC\n");
+                print("acpi/madt: Found I/O APIC #%U\n", madt_io_apics.length());
                 madt_io_apics.push_back((MADTIOApic *)madt_ptr);
                 break;
             case 2:
                 // interrupt source override
-                print("acpi/madt: Found ISO\n");
+                print("acpi/madt: Found ISO #%U\n", madt_isos.length());
                 madt_isos.push_back((MADTISO *)madt_ptr);
                 break;
             case 4:
                 // NMI
-                print("acpi/madt: Found NMI\n");
+                print("acpi/madt: Found NMI #%U\n", madt_nmis.length());
                 madt_nmis.push_back((MADTNMI *)madt_ptr);
                 break;
             default:

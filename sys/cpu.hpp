@@ -43,6 +43,13 @@ static inline bool cpuid(uint32_t leaf, uint32_t subleaf,
     return true;
 }
 
+static inline uint64_t rdtsc() {
+    uint32_t edx, eax;
+    asm volatile ("rdtsc"
+                  : "=a" (eax), "=d" (edx));
+    return ((uint64_t)edx << 32) | eax;
+}
+
 static inline uint64_t rdmsr(uint32_t msr) {
     uint32_t edx, eax;
     asm volatile ("rdmsr"

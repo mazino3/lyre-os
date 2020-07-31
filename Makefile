@@ -15,7 +15,7 @@ QEMU = qemu-system-x86_64
 CXXFLAGS  = -Wall -Wextra -O2
 ASFLAGS   =
 LDFLAGS   = -gc-sections -O2
-QEMUFLAGS = -m 1G -smp 4 -debugcon stdio -enable-kvm -cpu host
+QEMUFLAGS = -m 1G -smp 4 -debugcon stdio -enable-kvm -cpu host,+invtsc
 
 CXXHARDFLAGS := ${CXXFLAGS} -std=c++11 -masm=intel -fno-pic -mno-80387 -mno-mmx \
     -mno-sse -mno-sse2 -mno-red-zone -mcmodel=kernel -ffreestanding \

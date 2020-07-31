@@ -1,6 +1,12 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/cpu.hpp>
+#include <lib/print.hpp>
+#include <sys/hpet.hpp>
+
+uint64_t cpu_tsc_frequency;
+
+#define MAX_TSC_CALIBRATIONS 8
 
 size_t cpu_fpu_storage_size;
 
@@ -10,6 +16,7 @@ void (*cpu_fpu_restore)(void *);
 #define XSAVE_BIT (1 << 26)
 #define AVX_BIT (1 << 28)
 #define AVX512_BIT (1 << 16)
+#define INVARIANT_TSC_BIT (1 << 8)
 
 void cpu_init() {
     // First enable SSE/SSE2 as it is baseline for x86_64
@@ -64,4 +71,30 @@ void cpu_init() {
         cpu_fpu_save = fxsave;
         cpu_fpu_restore = fxrstor;
     }
+
+    // Check for invariant TSC
+    cpuid(0x80000007, 0, &a, &b, &c, &d);
+    if (!(d & INVARIANT_TSC_BIT)) {
+        print("cpu: No invariant TSC!!!\n");
+        for (;;);
+    }
+
+    // Calibrate the TSC
+    for (int i = 0; i < MAX_TSC_CALIBRATIONS; i++) {
+        uint64_t initial_tsc_reading = rdtsc();
+
+        // Wait 1 millisecond
+        hpet_usleep(1000);
+
+        uint64_t final_tsc_reading = rdtsc();
+
+        uint64_t freq = (final_tsc_reading - initial_tsc_reading) * 1000;
+        print("cpu: TSC reading #%u yielded a frequency of %U Hz.\n", i, freq);
+
+        cpu_tsc_frequency += freq;
+    }
+
+    // Average out all readings
+    cpu_tsc_frequency /= MAX_TSC_CALIBRATIONS;
+    print("cpu: TSC frequency fixed at %U Hz.\n", cpu_tsc_frequency);
 }

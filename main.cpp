@@ -2,6 +2,7 @@
 #include <sys/idt.hpp>
 #include <sys/pci.hpp>
 #include <sys/apic.hpp>
+#include <sys/hpet.hpp>
 #include <mm/pmm.hpp>
 #include <lib/stivale.hpp>
 #include <lib/dmesg.hpp>
@@ -17,6 +18,7 @@ extern "C" void main(Stivale *sti) {
 
     acpi_init((RSDP *)sti->rsdp);
     apic_init();
+    hpet_init();
     pci_init();
 
     for (;;) {

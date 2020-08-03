@@ -19,12 +19,11 @@ extern "C" void main(Stivale *sti) {
     print("Lyre says hello world!\n");
 
     acpi_init((RSDP *)sti->rsdp);
-    hpet_init();
     apic_init();
+    hpet_init();
+    cpu_init();
 
     alarm_init();
-
-    cpu_init();
 
     pci_init();
 

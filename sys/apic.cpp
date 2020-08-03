@@ -5,12 +5,9 @@
 #include <acpi/madt.hpp>
 #include <mm/vmm.hpp>
 #include <sys/mmio.hpp>
+#include <sys/cpu.hpp>
 #include <lib/print.hpp>
 #include <lib/types.hpp>
-
-uint64_t lapic_timer_frequency;
-
-#define MAX_TIMER_CALIBRATIONS 4
 
 #define LAPIC_REG_ICR0     0x300
 #define LAPIC_REG_ICR1     0x310
@@ -117,48 +114,20 @@ void io_apic_set_irq_redirect(uint8_t lapic_id, uint8_t vec, uint8_t irq, bool s
     io_apic_set_gsi_redirect(lapic_id, vec, irq, 0, status);
 }
 
-void lapic_timer_oneshot(uint8_t vector, uint64_t ms) {
-    // Mask, use one-shot mode, set vector
-    lapic_write(LAPIC_REG_TIMER, (1 << 17) | vector);
+void lapic_timer_oneshot(uint8_t vector, uint64_t us) {
+    // Use TSC-deadline mode, set vector
+    lapic_write(LAPIC_REG_TIMER, (0b10 << 17) | vector);
 
-    // Use divisor 1
-    lapic_write(LAPIC_REG_TIMER_DIV, 0b111);
+    uint64_t ticks  = us * (cpu_tsc_frequency / 1000000);
+    uint64_t target = rdtsc() + ticks;
 
-    uint32_t ticks = ms * (lapic_timer_frequency / 1000);
-    lapic_write(LAPIC_REG_TIMER_INITCNT, ticks);
+    wrmsr(IA32_TSC_DEADLINE, target);
 }
 
 void apic_init() {
     lapic_mmio_base = (uint8_t *)(uintptr_t)madt->local_controller_addr + MEM_PHYS_OFFSET;
     lapic_eoi_ptr = (uint32_t *)(lapic_mmio_base + LAPIC_REG_EOI);
     lapic_enable(0xff);
-
-    // Calibrate the APIC timer
-    lapic_timer_frequency = 0;
-    for (int i = 0; i < MAX_TIMER_CALIBRATIONS; i++) {
-        // Use divisor 1
-        lapic_write(LAPIC_REG_TIMER_DIV, 0b111);
-
-        // Start counter at 0xffffffff (going down)
-        lapic_write(LAPIC_REG_TIMER_INITCNT, 0xffffffff);
-
-        // Wait 1 millisecond
-        hpet_usleep(1000);
-
-        // Mask the timer
-        lapic_write(LAPIC_REG_TIMER, (1 << 16));
-
-        uint32_t ticks_count = 0xffffffff - lapic_read(LAPIC_REG_TIMER_CURCNT);
-
-        uint64_t freq = (uint64_t)ticks_count * 1000;
-        print("apic: LAPIC timer reading #%u yielded a frequency of %U Hz.\n", i, freq);
-
-        lapic_timer_frequency += freq;
-    }
-
-    // Average out all readings
-    lapic_timer_frequency /= MAX_TIMER_CALIBRATIONS;
-    print("apic: LAPIC timer frequency fixed at %U Hz.\n", lapic_timer_frequency);
 
     print("apic: Init done.\n");
 }

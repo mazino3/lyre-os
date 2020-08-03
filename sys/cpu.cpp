@@ -13,11 +13,6 @@ size_t cpu_fpu_storage_size;
 void (*cpu_fpu_save)(void *);
 void (*cpu_fpu_restore)(void *);
 
-#define XSAVE_BIT (1 << 26)
-#define AVX_BIT (1 << 28)
-#define AVX512_BIT (1 << 16)
-#define INVARIANT_TSC_BIT (1 << 8)
-
 void cpu_init() {
     // First enable SSE/SSE2 as it is baseline for x86_64
     uint64_t cr0 = 0;
@@ -41,7 +36,7 @@ void cpu_init() {
     uint32_t a, b, c, d;
     cpuid(1, 0, &a, &b, &c, &d);
 
-    if ((c & XSAVE_BIT)) {
+    if ((c & CPUID_XSAVE)) {
         cr4 = read_cr("4");
         cr4 |= (1 << 18); // Enable XSAVE and x{get, set}bv
         write_cr("4", cr4);
@@ -50,11 +45,11 @@ void cpu_init() {
         xcr0 |= (1 << 0); // Save x87 state with xsave
         xcr0 |= (1 << 1); // Save SSE state with xsave
 
-        if ((c & AVX_BIT))
+        if ((c & CPUID_AVX))
             xcr0 |= (1 << 2); // Enable AVX and save AVX state with xsave
 
         if (cpuid(7, 0, &a, &b, &c, &d)) {
-            if ((b & AVX512_BIT)) {
+            if ((b & CPUID_AVX512)) {
                 xcr0 |= (1 << 5); // Enable AVX-512
                 xcr0 |= (1 << 6); // Enable management of ZMM{0 -> 15}
                 xcr0 |= (1 << 7); // Enable management of ZMM{16 -> 31}
@@ -72,9 +67,14 @@ void cpu_init() {
         cpu_fpu_restore = fxrstor;
     }
 
+    cpuid(0x1, 0, &a, &b, &c, &d);
+    if (!(c & CPUID_TSC_DEADLINE)) {
+        print("cpu: No TSC-deadline mode!!!\n");
+        for (;;);
+    }
     // Check for invariant TSC
     cpuid(0x80000007, 0, &a, &b, &c, &d);
-    if (!(d & INVARIANT_TSC_BIT)) {
+    if (!(d & CPUID_INVARIANT_TSC)) {
         print("cpu: No invariant TSC!!!\n");
         for (;;);
     }

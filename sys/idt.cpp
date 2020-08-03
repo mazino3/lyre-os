@@ -38,7 +38,7 @@ struct IDTPtr {
 static struct IDTEntry idt[256];
 extern void *int_thunks[];
 
-static void register_interrupt_handler(size_t vec, void *handler, uint8_t ist, uint8_t type) {
+void idt_register_interrupt_handler(size_t vec, void *handler, uint8_t ist, uint8_t type) {
     uint64_t p = (uint64_t)handler;
 
     idt[vec].offset_lo = (uint16_t)p;
@@ -55,7 +55,7 @@ void idt_init() {
 
     /* Register all interrupts to thunks */
     for (size_t i = 0; i < 256; i++)
-        register_interrupt_handler(i, int_thunks[i], 0, 0x8e);
+        idt_register_interrupt_handler(i, int_thunks[i], 0, 0x8e);
 
     IDTPtr idt_ptr = {
         sizeof(idt) - 1,

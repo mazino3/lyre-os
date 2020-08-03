@@ -33,4 +33,3 @@ int_thunks:
 raise_int_getaddr i
 %assign i i+1
 %endrep
-

@@ -8,6 +8,7 @@
 #include <lib/stivale.hpp>
 #include <lib/dmesg.hpp>
 #include <lib/print.hpp>
+#include <lib/alarm.hpp>
 #include <acpi/acpi.hpp>
 
 extern "C" void main(Stivale *sti) {
@@ -18,8 +19,10 @@ extern "C" void main(Stivale *sti) {
     print("Lyre says hello world!\n");
 
     acpi_init((RSDP *)sti->rsdp);
-    apic_init();
     hpet_init();
+    apic_init();
+
+    alarm_init();
 
     cpu_init();
 

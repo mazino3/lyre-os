@@ -6,7 +6,7 @@
 
 uint64_t cpu_tsc_frequency;
 
-#define MAX_TSC_CALIBRATIONS 8
+#define MAX_TSC_CALIBRATIONS 4
 
 size_t cpu_fpu_storage_size;
 

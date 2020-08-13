@@ -1,65 +1,70 @@
-# Directories
-REPODIR   := $(shell realpath .)
-BOOTDIR   := ${REPODIR}/bootload
-
-# Outputs
-KERNEL    := ${REPODIR}/lyre.elf
-IMAGE     := ${REPODIR}/lyre.hdd
+# Some useful constants.
+KERNEL    := lyre.elf
+IMAGE     := lyre.hdd
+CMAGENTA  := $(shell tput setaf 5)
+CRESET    := $(shell tput sgr0)
+SOURCEDIR := source
+BUILDDIR  := build
 
 # Compilers, several programs and their flags.
-CXX  = g++
+DC   = ldc2
 AS   = nasm
-LD   = ld
+LD   = ld.lld
 QEMU = qemu-system-x86_64
 
-CXXFLAGS  = -Wall -Wextra -O2
-ASFLAGS   =
-LDFLAGS   = -gc-sections -O2
-QEMUFLAGS = -m 1G -smp 4 -debugcon stdio -enable-kvm -cpu host,+invtsc
+DFLAGS    = -O -g -de
+ASFLAGS   = -O2
+LDFLAGS   = -gc-sections
+QEMUFLAGS = -m 1G -smp 4 -debugcon stdio -enable-kvm -cpu host -no-reboot -no-shutdown -d int
 
-CXXHARDFLAGS := ${CXXFLAGS} -std=c++11 -masm=intel -fno-pic -mno-80387 -mno-mmx \
-    -mno-sse -mno-sse2 -mno-red-zone -mcmodel=kernel -ffreestanding \
-    -fno-stack-protector -fno-omit-frame-pointer -fno-rtti -fno-exceptions
+DHARDFLAGS := ${DFLAGS} -mtriple=amd64-unknown-elf -relocation-model=static \
+	-code-model=kernel -mattr=-sse,-sse2,-sse3,-ssse3 -disable-red-zone     \
+	-betterC -op
 ASHARDFLAGS   := ${ASFLAGS} -felf64
-LDHARDFLAGS   := ${LDFLAGS} -nostdlib -no-pie -z max-page-size=0x1000
+LDHARDFLAGS   := ${LDFLAGS} --oformat elf_amd64 --nostdlib
 QEMUHARDFLAGS := ${QEMUFLAGS}
 
 # Source to compile.
-CXXSOURCE := $(shell find ${REPODIR} -type f -name '*.cpp' | grep -v bootload)
-ASMSOURCE := $(shell find ${REPODIR} -type f -name '*.asm' | grep -v bootload)
-OBJ       := $(CXXSOURCE:.cpp=.o) $(ASMSOURCE:.asm=.o)
+DSOURCE   := $(shell find ${SOURCEDIR} -type f -name '*.d')
+ASMSOURCE := $(shell find ${SOURCEDIR} -type f -name '*.asm')
+OBJ       := $(DSOURCE:.d=.o) $(ASMSOURCE:.asm=.o)
 
 # Where the fun begins!
-.PHONY: all test clean distclean
+.PHONY: all hdd test clean distclean
 
 all: ${KERNEL}
 
 ${KERNEL}: ${OBJ}
-	${LD} ${LDHARDFLAGS} ${OBJ} -T ${REPODIR}/linker.ld -o $@
+	@echo "${CMAGENTA}${LD}${CRESET} '$@'"
+	@${LD} ${LDHARDFLAGS} ${OBJ} -T ${BUILDDIR}/linker.ld -o $@
 
-%.o: %.cpp
-	${CXX} ${CXXHARDFLAGS} -I${REPODIR} -c $< -o $@
+%.o: %.d
+	@echo "${CMAGENTA}${DC}${CRESET} '$@'"
+	@${DC} ${DHARDFLAGS} -I=${SOURCEDIR} -c $< -of=$@
 
 %.o: %.asm
-	${AS} ${ASHARDFLAGS} -I${REPODIR} $< -o $@
+	@echo "${CMAGENTA}${AS}${CRESET} '$@'"
+	@${AS} ${ASHARDFLAGS} -I${SOURCEDIR} $< -o $@
 
-test: ${IMAGE}
-	${QEMU} ${QEMUHARDFLAGS} -hda ${IMAGE}
+hdd: ${IMAGE}
 
-${IMAGE}: ${BOOTDIR}/qloader2 ${KERNEL}
-	dd if=/dev/zero bs=1M count=0 seek=64 of=${IMAGE}
-	parted -s ${IMAGE} mklabel msdos
-	parted -s ${IMAGE} mkpart primary 1 100%
-	echfs-utils -m -p0 ${IMAGE} quick-format 32768
-	echfs-utils -m -p0 ${IMAGE} import ${KERNEL} `basename ${KERNEL}`
-	echfs-utils -m -p0 ${IMAGE} import ${BOOTDIR}/qloader2.cfg qloader2.cfg
-	${BOOTDIR}/qloader2/qloader2-install ${BOOTDIR}/qloader2/qloader2.bin ${IMAGE}
+${IMAGE}: qloader2 ${KERNEL}
+	@dd if=/dev/zero bs=1M count=0 seek=64 of=${IMAGE}
+	@parted -s ${IMAGE} mklabel msdos
+	@parted -s ${IMAGE} mkpart primary 1 100%
+	@echfs-utils -m -p0 ${IMAGE} quick-format 32768
+	@echfs-utils -m -p0 ${IMAGE} import ${KERNEL} ${KERNEL}
+	@echfs-utils -m -p0 ${IMAGE} import ${BUILDDIR}/qloader2.cfg qloader2.cfg
+	@qloader2/qloader2-install qloader2/qloader2.bin ${IMAGE}
 
-${BOOTDIR}/qloader2:
-	git clone https://github.com/qword-os/qloader2.git ${BOOTDIR}/qloader2
+qloader2:
+	@git clone https://github.com/qword-os/qloader2.git
+
+test: hdd
+	@${QEMU} ${QEMUHARDFLAGS} -hda ${IMAGE}
 
 clean:
-	rm -rf ${OBJ} ${KERNEL} ${IMAGE}
+	@rm -rf ${OBJ} ${KERNEL} ${IMAGE}
 
 distclean: clean
-	rm -rf ${BOOTDIR}/qloader2
+	@rm -rf qloader2

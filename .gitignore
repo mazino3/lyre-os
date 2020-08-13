@@ -1,5 +1,4 @@
-qloader2
-*.o
-*.hdd
-*.bin
-*.elf
+/**/*.o
+/**/*.elf
+/**/*.hdd
+/qloader2

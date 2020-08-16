@@ -1,9 +1,9 @@
-module services.pci.scan;
+module system.pci.scan;
 
 import lib.list;
 import lib.alloc;
 import lib.messages;
-import services.pci.pci;
+import system.pci.pci;
 
 private immutable maxFunction = 8;
 private immutable maxDevice   = 32;

@@ -1,4 +1,4 @@
-module services.pci.pci;
+module system.pci.pci;
 
 import system.cpu;
 

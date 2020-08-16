@@ -35,6 +35,11 @@ struct List(T) {
         return storage[i];
     }
 
+	void erase(size_t index) {
+		storage[index] = storage[length() - 1];
+		elementCount--;
+	}
+
     void shrinkToFit() {
         resizeArrayAbs!T(&storage, elementCount);
         size = elementCount;

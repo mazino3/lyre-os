@@ -9,16 +9,40 @@ import memory.physical;
 import memory.virtual;
 import lib.messages;
 import scheduler.thread;
-import services.kmessage;
-import services.terminal;
-import services.pci;
-import services.storage;
+import logging.kmessage;
+import logging.terminal;
+import system.pci;
 import acpi.lib;
 import system.apic;
 import system.cpu;
 import system.smp;
+import lib.list;
 
-__gshared bool servicesUp;
+ulong hash(char *str) {
+    ulong hash = 5381;
+    int c;
+
+    while (true) {
+        if(c != *str) {
+            break;
+        }
+        hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+		c = *str++;
+    }
+    return hash;
+}
+
+
+bool streq(char* str1, char* str2) {
+    while(*str1) {
+        if(*str1 != *str2) {
+            return false;
+        }
+        str1++;
+        str2++;
+    }
+    return true;
+}
 
 extern (C) void main(Stivale* stivale) {
     log("Hai~ <3. Doing some preparatives");
@@ -63,12 +87,7 @@ extern (C) void main(Stivale* stivale) {
 }
 
 extern (C) void mainThread(Stivale* stivale) {
-    log("Spawning services, switching to kmessage");
-    servicesUp = true;
-    spawnThread(&kmessageService, null);
-    spawnThread(&pciService,      null);
-    spawnThread(&storageService,  null);
-    spawnThread(&terminalService, null);
+	initPci();
 
     for (;;) {
         dequeueAndYield();

@@ -1,4 +1,4 @@
-module services.terminal.framebuffer;
+module logging.terminal.framebuffer;
 
 import memory.virtual;
 import stivale;

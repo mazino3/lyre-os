@@ -1,7 +1,7 @@
 module lib.messages;
 
-import services.kmessage;
-import services.terminal;
+import logging.kmessage;
+import logging.terminal;
 import main;
 import system.cpu;
 import lib.string;
@@ -88,25 +88,10 @@ private void sync(KMessagePriority priority) {
     buffer[bufferIndex] = '\0';
     bufferIndex = 0;
 
-    if (servicesUp) {
-        auto msg = KMessage(priority, fromCString(buffer.ptr));
-        kmessageQueue.sendMessageSync(msg);
-    } else {
-        final switch (priority) {
-            case KMessagePriority.Log:
-                print("LOG: ");
-                break;
-            case KMessagePriority.Warn:
-                print("WARN: ");
-                break;
-            case KMessagePriority.Error:
-                print("ERROR: ");
-                break;
-        }
+    debugPrint(priority, fromCString(buffer.ptr));
 
-        print(fromCString(buffer.ptr));
-        print("\n");
-    }
+    print(fromCString(buffer.ptr));
+    print("\n");
 }
 
 private void print(string str) {

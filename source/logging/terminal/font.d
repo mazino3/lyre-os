@@ -1,4 +1,4 @@
-module services.terminal.font;
+module logging.terminal.font;
 
 // Generated from terminus font by converting it into a bitmap and using
 // xxd -i.

@@ -1,11 +1,11 @@
-module services.terminal.tty;
+module logging.terminal.tty;
 
 import memory.virtual;
 import lib.alloc;
 import stivale;
 import lib.bit;
-import services.terminal.font;
-import services.terminal.framebuffer;
+import logging.terminal.font;
+import logging.terminal.framebuffer;
 
 private immutable palette = [
     0x3f3f3f, // Black.

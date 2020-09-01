@@ -48,17 +48,18 @@ ${KERNEL}: ${OBJ}
 
 hdd: ${IMAGE}
 
-${IMAGE}: qloader2 ${KERNEL}
+${IMAGE}: limine ${KERNEL}
 	@dd if=/dev/zero bs=1M count=0 seek=64 of=${IMAGE}
 	@parted -s ${IMAGE} mklabel msdos
 	@parted -s ${IMAGE} mkpart primary 1 100%
 	@echfs-utils -m -p0 ${IMAGE} quick-format 32768
 	@echfs-utils -m -p0 ${IMAGE} import ${KERNEL} ${KERNEL}
-	@echfs-utils -m -p0 ${IMAGE} import ${BUILDDIR}/qloader2.cfg qloader2.cfg
-	@qloader2/qloader2-install qloader2/qloader2.bin ${IMAGE}
+	@echfs-utils -m -p0 ${IMAGE} import ${BUILDDIR}/limine.cfg limine.cfg
+	@$(MAKE) -C limine limine-install
+	@limine/limine-install limine/limine.bin ${IMAGE}
 
-qloader2:
-	@git clone https://github.com/qword-os/qloader2.git
+limine:
+	@git clone https://github.com/limine-bootloader/limine.git
 
 test: hdd
 	@${QEMU} ${QEMUHARDFLAGS} -hda ${IMAGE}
@@ -67,4 +68,4 @@ clean:
 	@rm -rf ${OBJ} ${KERNEL} ${IMAGE}
 
 distclean: clean
-	@rm -rf qloader2
+	@rm -rf limine

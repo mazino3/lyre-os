@@ -18,32 +18,6 @@ import system.cpu;
 import system.smp;
 import lib.list;
 
-ulong hash(char *str) {
-    ulong hash = 5381;
-    int c;
-
-    while (true) {
-        if(c != *str) {
-            break;
-        }
-        hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
-		c = *str++;
-    }
-    return hash;
-}
-
-
-bool streq(char* str1, char* str2) {
-    while(*str1) {
-        if(*str1 != *str2) {
-            return false;
-        }
-        str1++;
-        str2++;
-    }
-    return true;
-}
-
 extern (C) void main(Stivale* stivale) {
     log("Hai~ <3. Doing some preparatives");
     stivale = cast(Stivale*)(cast(size_t)stivale + MEM_PHYS_OFFSET);
@@ -57,7 +31,8 @@ extern (C) void main(Stivale* stivale) {
     auto as = AddressSpace(stivale.memmap);
     as.setActive();
 
-    terminalEarlyInit(stivale.framebuffer);
+    log("Starting terminal");
+    terminalInit(stivale.framebuffer);
 
     log("Init CPU");
     initCPULocals();
@@ -87,7 +62,7 @@ extern (C) void main(Stivale* stivale) {
 }
 
 extern (C) void mainThread(Stivale* stivale) {
-	initPci();
+	initPCI();
 
     for (;;) {
         dequeueAndYield();

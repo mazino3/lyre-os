@@ -122,7 +122,7 @@ struct PCIDevice {
     }
 
     void enableBusMastering() {
-        if (readDword(0x4) & (1 << 2)) {
+        if (!(readDword(0x4) & (1 << 2))) {
             writeDword(0x04, readDword(0x4) | (1 << 2));
         }
     }

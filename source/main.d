@@ -28,8 +28,8 @@ extern (C) void main(Stivale* stivale) {
 
     log("Initialising memory management and GC");
     initPhysicalAllocator(stivale.memmap);
-    auto as = AddressSpace(stivale.memmap);
-    as.setActive();
+    auto as = createKernelPagemap(stivale.memmap);
+    as.switchTo();
 
     log("Starting terminal");
     terminalInit(stivale.framebuffer);

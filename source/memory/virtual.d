@@ -42,60 +42,67 @@ void cleanPageTable(size_t* table) {
     }
 }
 
+AddressSpace createKernelPagemap(StivaleMemmap memmap) {
+    auto ret = AddressSpace(0);
+
+    // Map anything from 0 to 4 GiB starting from MEM_PHYS_OFFSET.
+    for (size_t i = 0; i < 0x100000000; i += PAGE_SIZE) {
+        ret.mapPage(i, i, 0x03);
+        ret.mapPage(i, MEM_PHYS_OFFSET + i, 0x03);
+    }
+
+    // Map kernel in
+    for (size_t i = 0; i < 0x80000000; i += PAGE_SIZE) {
+        ret.mapPage(i, KERNEL_PHYS_OFFSET + i, 0x03);
+    }
+
+    // Map according to the memmap.
+    for (auto i = 0; i < memmap.entries; i++) {
+        auto base = memmap.address[i].base;
+        auto size = memmap.address[i].size;
+
+        size_t alignedBase = base - (base % PAGE_SIZE);
+        size_t alignedSize = (size / PAGE_SIZE) * PAGE_SIZE;
+
+        if (size % PAGE_SIZE) {
+            alignedSize += PAGE_SIZE;
+        }
+
+        if (base % PAGE_SIZE) {
+            alignedSize += PAGE_SIZE;
+        }
+
+        for (ulong j = 0; j * PAGE_SIZE < alignedSize; j++) {
+            size_t addr = alignedBase + j * PAGE_SIZE;
+
+            // Skip over first 4 GiB
+            if (addr < 0x100000000) {
+                continue;
+            }
+
+            ret.mapPage(addr, MEM_PHYS_OFFSET + addr, 0x03);
+        }
+    }
+
+    return ret;
+}
+
 struct AddressSpace {
     private Lock    lock;
     private size_t* pml4;
 
-    this(StivaleMemmap memmap) {
-        this.pml4 = cast(size_t*)(pmmAllocAndZero(1) + MEM_PHYS_OFFSET);
-
-        // Map anything from 0 to 4 GiB starting from MEM_PHYS_OFFSET.
-        for (size_t i = 0; i < 0x100000000; i += PAGE_SIZE) {
-            this.mapPage(i, i, 0x03);
-            this.mapPage(i, MEM_PHYS_OFFSET + i, 0x03);
-        }
-
-        for (size_t i = 0; i < 0x80000000; i += PAGE_SIZE) {
-            this.mapPage(i, KERNEL_PHYS_OFFSET + i, 0x03);
-        }
-
-        // Map according to the memmap.
-        for (auto i = 0; i < memmap.entries; i++) {
-            auto base = memmap.address[i].base;
-            auto size = memmap.address[i].size;
-
-            size_t alignedBase = base - (base % PAGE_SIZE);
-            size_t alignedSize = (size / PAGE_SIZE) * PAGE_SIZE;
-
-            if (size % PAGE_SIZE) {
-                alignedSize += PAGE_SIZE;
-            }
-
-            if (base % PAGE_SIZE) {
-                alignedSize += PAGE_SIZE;
-            }
-
-            for (ulong j = 0; j * PAGE_SIZE < alignedSize; j++) {
-                size_t addr = alignedBase + j * PAGE_SIZE;
-
-                // Skip over first 4 GiB
-                if (addr < 0x100000000) {
-                    continue;
-                }
-
-                this.mapPage(addr, MEM_PHYS_OFFSET + addr, 0x03);
-            }
-        }
+    this(int unused) {
+        pml4 = cast(size_t*)(pmmAllocAndZero(1) + MEM_PHYS_OFFSET);
     }
 
-    void setActive() {
-        this.lock.acquire();
-        writeCR3(cast(size_t)(this.pml4) - MEM_PHYS_OFFSET);
-        this.lock.release();
+    void switchTo() {
+        lock.acquire();
+        writeCR3(cast(size_t)pml4 - MEM_PHYS_OFFSET);
+        lock.release();
     }
 
     void mapPage(size_t physicalAddress, size_t virtualAddress, size_t flags) {
-        this.lock.acquire();
+        lock.acquire();
 
         // Calculate the indexes in the various tables using the virtual addr.
         auto pml4Entry = (virtualAddress & (cast(size_t)0x1ff << 39)) >> 39;
@@ -104,7 +111,7 @@ struct AddressSpace {
         auto pml1Entry = (virtualAddress & (cast(size_t)0x1ff << 12)) >> 12;
 
         // Find or create tables.
-        size_t* pml3 = findOrAllocPageTable(this.pml4, pml4Entry, 0b111);
+        size_t* pml3 = findOrAllocPageTable(pml4, pml4Entry, 0b111);
         size_t* pml2 = findOrAllocPageTable(pml3, pml3Entry, 0b111);
         size_t* pml1 = findOrAllocPageTable(pml2, pml2Entry, 0b111);
 
@@ -112,11 +119,11 @@ struct AddressSpace {
         // Also set flags.
         pml1[pml1Entry] = physicalAddress | flags;
 
-        this.lock.release();
+        lock.release();
     }
 
     void unmapPage(size_t virtualAddress) {
-        this.lock.acquire();
+        lock.acquire();
 
         // Calculate the indexes in the various tables using the virtual addr.
         auto pml4Entry = (virtualAddress & (cast(size_t)0x1FF << 39)) >> 39;
@@ -125,7 +132,7 @@ struct AddressSpace {
         auto pml1Entry = (virtualAddress & (cast(size_t)0x1FF << 12)) >> 12;
 
         // Find or die if we dont find them.
-        size_t* pml3 = findPageTable(this.pml4, pml4Entry);
+        size_t* pml3 = findPageTable(pml4, pml4Entry);
         assert(pml3 != null);
         size_t* pml2 = findPageTable(pml3, pml3Entry);
         assert(pml2 != null);

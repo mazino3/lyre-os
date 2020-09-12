@@ -12,7 +12,6 @@ struct HashMap(K, V) {
     List!(Entry) *entries;
 
     size_t buckets;
-    size_t num_entries;
     ulong function(K str) hash;
     bool function(K k1, K k2) cmp;
 
@@ -29,7 +28,7 @@ struct HashMap(K, V) {
     }
 
     bool get(K key, V* output) {
-        size_t index = hash(key);
+        size_t index = hash(key) % buckets;
         auto arr = entries[index];
         size_t len = arr.length();
         foreach (ulong i; 0..len) {
@@ -42,7 +41,7 @@ struct HashMap(K, V) {
     }
 
     void remove(K key) {
-        size_t index = hash(key);
+        size_t index = hash(key) % buckets;
         auto arr = entries[index];
         size_t len = arr.length();
         foreach (ulong i; 0..len) {

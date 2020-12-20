@@ -1,6 +1,5 @@
 # Directories
 REPODIR   := $(shell realpath .)
-BOOTDIR   := ${REPODIR}/bootload
 
 # Outputs
 KERNEL    := ${REPODIR}/lyre.elf
@@ -46,20 +45,21 @@ ${KERNEL}: ${OBJ}
 test: ${IMAGE}
 	${QEMU} ${QEMUHARDFLAGS} -hda ${IMAGE}
 
-${IMAGE}: ${BOOTDIR}/qloader2 ${KERNEL}
+${IMAGE}: limine ${KERNEL}
 	dd if=/dev/zero bs=1M count=0 seek=64 of=${IMAGE}
 	parted -s ${IMAGE} mklabel msdos
 	parted -s ${IMAGE} mkpart primary 1 100%
 	echfs-utils -m -p0 ${IMAGE} quick-format 32768
 	echfs-utils -m -p0 ${IMAGE} import ${KERNEL} `basename ${KERNEL}`
-	echfs-utils -m -p0 ${IMAGE} import ${BOOTDIR}/qloader2.cfg qloader2.cfg
-	${BOOTDIR}/qloader2/qloader2-install ${BOOTDIR}/qloader2/qloader2.bin ${IMAGE}
+	echfs-utils -m -p0 ${IMAGE} import limine.cfg limine.cfg
+	limine/limine-install ${BOOTDIR}/limine/limine.bin ${IMAGE}
 
-${BOOTDIR}/qloader2:
-	git clone https://github.com/qword-os/qloader2.git ${BOOTDIR}/qloader2
+limine:
+	git clone https://github.com/limine-bootloader/limine.git --depth=1 --branch=v0.7.2
+	$(MAKE) -C limine limine-install
 
 clean:
 	rm -rf ${OBJ} ${KERNEL} ${IMAGE}
 
 distclean: clean
-	rm -rf ${BOOTDIR}/qloader2
+	rm -rf limine

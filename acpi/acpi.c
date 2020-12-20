@@ -1,12 +1,13 @@
 #include <stdint.h>
 #include <stddef.h>
-#include <lib/print.hpp>
+#include <stdbool.h>
+#include <lib/print.h>
 #include <lib/builtins.h>
-#include <acpi/acpi.hpp>
-#include <acpi/madt.hpp>
-#include <mm/vmm.hpp>
+#include <acpi/acpi.h>
+#include <acpi/madt.h>
+#include <mm/vmm.h>
 
-struct RSDP {
+struct rsdp {
     char signature[8];
     uint8_t checksum;
     char oem_id[6];
@@ -19,26 +20,26 @@ struct RSDP {
     uint8_t reserved[3];
 } __attribute__((packed));
 
-struct RSDT {
-    SDT    sdt;
+struct rsdt {
+    struct sdt sdt;
     symbol ptrs_start;
 } __attribute__((packed));
 
 static bool use_xsdt;
-static RSDT *rsdt;
+static struct rsdt *rsdt;
 
 /* This function should look for all the ACPI tables and index them for
    later use */
-void acpi_init(RSDP *rsdp) {
+void acpi_init(struct rsdp *rsdp) {
     print("acpi: Revision: %u\n", rsdp->rev);
 
     if (rsdp->rev >= 2 && rsdp->xsdt_addr) {
         use_xsdt = true;
-        rsdt = (RSDT *)((uintptr_t)rsdp->xsdt_addr + MEM_PHYS_OFFSET);
+        rsdt = (struct rsdt *)((uintptr_t)rsdp->xsdt_addr + MEM_PHYS_OFFSET);
         print("acpi: Found XSDT at %X\n", (uintptr_t)rsdt);
     } else {
         use_xsdt = false;
-        rsdt = (RSDT *)((uintptr_t)rsdp->rsdt_addr + MEM_PHYS_OFFSET);
+        rsdt = (struct rsdt *)((uintptr_t)rsdp->rsdt_addr + MEM_PHYS_OFFSET);
         print("acpi: Found RSDT at %X\n", (uintptr_t)rsdt);
     }
 
@@ -50,12 +51,12 @@ void acpi_init(RSDP *rsdp) {
 void *acpi_find_sdt(const char *signature, int index) {
     int cnt = 0;
 
-    for (size_t i = 0; i < rsdt->sdt.length - sizeof(SDT); i++) {
-        SDT *ptr;
+    for (size_t i = 0; i < rsdt->sdt.length - sizeof(struct sdt); i++) {
+        struct sdt *ptr;
         if (use_xsdt)
-            ptr = (SDT *)(((uint64_t *)rsdt->ptrs_start)[i] + MEM_PHYS_OFFSET);
+            ptr = (struct sdt *)(((uint64_t *)rsdt->ptrs_start)[i] + MEM_PHYS_OFFSET);
         else
-            ptr = (SDT *)(((uint32_t *)rsdt->ptrs_start)[i] + MEM_PHYS_OFFSET);
+            ptr = (struct sdt *)(((uint32_t *)rsdt->ptrs_start)[i] + MEM_PHYS_OFFSET);
 
         if (!strncmp(ptr->signature, signature, 4) && cnt++ == index) {
             print("acpi: Found \"%s\" at %X\n", signature, ptr);
@@ -64,5 +65,5 @@ void *acpi_find_sdt(const char *signature, int index) {
     }
 
     print("acpi: \"%s\" not found\n", signature);
-    return nullptr;
+    return NULL;
 }

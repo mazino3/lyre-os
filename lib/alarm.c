@@ -1,14 +1,15 @@
 #include <stdint.h>
 #include <stddef.h>
-#include <lib/alarm.hpp>
-#include <sys/idt.hpp>
-#include <sys/apic.hpp>
-#include <lib/print.hpp>
+#include <lib/alarm.h>
+#include <sys/idt.h>
+#include <sys/apic.h>
+#include <lib/print.h>
 
 static uint8_t alarm_vector;
 
 __attribute__((interrupt))
-static void alarm_interrupt_handler(void *) {
+static void alarm_interrupt_handler(void *p) {
+    (void)p;
     lapic_eoi();
 }
 

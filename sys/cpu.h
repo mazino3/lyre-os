@@ -2,7 +2,8 @@
 
 #include <stdint.h>
 #include <stddef.h>
-#include <lib/asm.hpp>
+#include <stdbool.h>
+#include <lib/asm.h>
 
 extern uint64_t cpu_tsc_frequency;
 extern size_t cpu_fpu_storage_size;

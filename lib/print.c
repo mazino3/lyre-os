@@ -1,9 +1,9 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdarg.h>
-#include <lib/print.hpp>
-#include <lib/debug.hpp>
-#include <lib/dmesg.hpp>
+#include <lib/print.h>
+#include <lib/debug.h>
+#include <lib/dmesg.h>
 #include <lib/builtins.h>
 
 static const char *base_digits = "0123456789abcdef";
@@ -111,8 +111,7 @@ void print(const char *fmt, ...) {
     char buf[MAX_PRINT_BUF_SIZE];
     vsnprint(buf, MAX_PRINT_BUF_SIZE, fmt, args);
 
-    class DMesg dmesg;
-    dmesg.write(buf, strlen(buf));
+    dmesg->write(dmesg, buf, strlen(buf));
 
     debug_log(buf);
 

@@ -1,7 +1,8 @@
 #pragma once
 
-#include <cstddef>
+#include <stddef.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 struct PCIDeviceBar {
     size_t base;

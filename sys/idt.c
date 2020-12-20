@@ -1,14 +1,14 @@
 #include <stddef.h>
 #include <stdint.h>
-#include <sys/idt.hpp>
-#include <lib/lock.hpp>
+#include <sys/idt.h>
+#include <lib/lock.h>
 
-static Lock idt_lock;
+static lock_t idt_lock;
 static int free_int_vect_base = 0x80;
 static const int free_int_vect_limit = 0xa0;
 
 int idt_get_empty_int_vector() {
-    idt_lock.acquire();
+    SPINLOCK_ACQUIRE(idt_lock);
 
     int ret;
     if (free_int_vect_base == free_int_vect_limit)
@@ -16,7 +16,7 @@ int idt_get_empty_int_vector() {
     else
         ret = free_int_vect_base++;
 
-    idt_lock.release();
+    LOCK_RELEASE(idt_lock);
     return ret;
 }
 
@@ -51,13 +51,13 @@ void idt_register_interrupt_handler(size_t vec, void *handler, uint8_t ist, uint
 }
 
 void idt_init() {
-    idt_lock.acquire();
+    SPINLOCK_ACQUIRE(idt_lock);
 
     /* Register all interrupts to thunks */
     for (size_t i = 0; i < 256; i++)
         idt_register_interrupt_handler(i, int_thunks[i], 0, 0x8e);
 
-    IDTPtr idt_ptr = {
+    struct IDTPtr idt_ptr = {
         sizeof(idt) - 1,
         (uint64_t)idt
     };
@@ -68,5 +68,5 @@ void idt_init() {
         : "m" (idt_ptr)
     );
 
-    idt_lock.release();
+    LOCK_RELEASE(idt_lock);
 }

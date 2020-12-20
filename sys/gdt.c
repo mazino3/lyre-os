@@ -1,5 +1,5 @@
 #include <stdint.h>
-#include <sys/gdt.hpp>
+#include <sys/gdt.h>
 
 struct GDTEntry {
     uint16_t limit;
@@ -22,8 +22,8 @@ struct TSSEntry {
 } __attribute__((packed));
 
 struct GDT {
-    GDTEntry entries[5];
-    TSSEntry tss;
+    struct GDTEntry entries[5];
+    struct TSSEntry tss;
 } __attribute__((packed));
 
 struct GDTPointer {
@@ -31,8 +31,8 @@ struct GDTPointer {
     uint64_t address;
 } __attribute__((packed));
 
-static GDT        gdt;
-static GDTPointer gdt_pointer;
+static struct GDT        gdt;
+static struct GDTPointer gdt_pointer;
 
 void gdt_init() {
     // Null descriptor.

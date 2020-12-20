@@ -1,7 +1,7 @@
-#include <sys/pci.hpp>
-#include <lib/print.hpp>
-#include <lib/dynarray.hpp>
-#include <sys/port_io.hpp>
+#include <sys/pci.h>
+#include <lib/print.h>
+#include <lib/dynarray.h>
+#include <sys/port_io.h>
 
 static constexpr size_t PCI_MAX_FUNCTION = 8;
 static constexpr size_t PCI_MAX_DEVICE   = 32;

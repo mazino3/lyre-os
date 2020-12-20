@@ -1,11 +1,11 @@
 #include <stdint.h>
 #include <stddef.h>
-#include <acpi/acpi.hpp>
-#include <sys/mmio.hpp>
-#include <mm/vmm.hpp>
+#include <acpi/acpi.h>
+#include <sys/mmio.h>
+#include <mm/vmm.h>
 
 struct HpetTable {
-    SDT      std;
+    struct sdt;
     uint8_t  hardware_rev_id;
     uint8_t  info;
     uint16_t pci_vendor_id;
@@ -31,13 +31,13 @@ struct Hpet {
     uint64_t unused4;
 };
 
-static HpetTable *hpet_table;
-static Hpet      *hpet;
+static struct HpetTable *hpet_table;
+static struct Hpet      *hpet;
 static uint32_t   clk = 0;
 
 void hpet_init() {
-    hpet_table = (HpetTable *)acpi_find_sdt("HPET", 0);
-    hpet       = (Hpet *)(hpet_table->address + MEM_PHYS_OFFSET);
+    hpet_table = acpi_find_sdt("HPET", 0);
+    hpet       = (void *)(hpet_table->address + MEM_PHYS_OFFSET);
 
     clk = hpet->general_capabilities >> 32;
 

@@ -1,25 +1,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <lib/builtins.h>
-#include <lib/alloc.hpp>
-
-void *operator new(size_t size) {
-    return alloc(size);
-}
-
-void operator delete(void *ptr) {
-    free(ptr);
-}
-
-void *operator new[](size_t size) {
-    return alloc(size);
-}
-
-void operator delete[](void *ptr) {
-    free(ptr);
-}
-
-extern "C" {
+#include <lib/alloc.h>
 
 void *memcpy(void *dest, const void *src, size_t n) {
     uint8_t *pdest = (uint8_t *)dest;
@@ -121,6 +103,4 @@ size_t strlen(const char *str) {
     for (len = 0; str[len]; len++);
 
     return len;
-}
-
 }

@@ -3,9 +3,9 @@
 #include <stdint.h>
 #include <stddef.h>
 
-struct RSDP;
+struct rsdp;
 
-struct SDT {
+struct sdt {
     char signature[4];
     uint32_t length;
     uint8_t rev;
@@ -17,5 +17,5 @@ struct SDT {
     uint32_t creator_rev;
 } __attribute__((packed));
 
-void acpi_init(RSDP *rsdp);
+void acpi_init(struct rsdp *rsdp);
 void *acpi_find_sdt(const char *signature, int index);

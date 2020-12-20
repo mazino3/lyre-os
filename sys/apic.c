@@ -1,13 +1,14 @@
 #include <stdint.h>
 #include <stddef.h>
-#include <sys/apic.hpp>
-#include <sys/hpet.hpp>
-#include <acpi/madt.hpp>
-#include <mm/vmm.hpp>
-#include <sys/mmio.hpp>
-#include <sys/cpu.hpp>
-#include <lib/print.hpp>
-#include <lib/types.hpp>
+#include <stdbool.h>
+#include <sys/apic.h>
+#include <sys/hpet.h>
+#include <acpi/madt.h>
+#include <mm/vmm.h>
+#include <sys/mmio.h>
+#include <sys/cpu.h>
+#include <lib/print.h>
+#include <lib/types.h>
 
 #define LAPIC_REG_ICR0     0x300
 #define LAPIC_REG_ICR1     0x310
@@ -48,13 +49,13 @@ void lapic_send_ipi(uint8_t lapic_id, uint8_t vector) {
 }
 
 static uint32_t io_apic_read(size_t io_apic_num, uint32_t reg) {
-    uint8_t *base = (uint8_t *)(uintptr_t)madt_io_apics[io_apic_num]->addr + MEM_PHYS_OFFSET;
+    uint8_t *base = (uint8_t *)(uintptr_t)madt_io_apics.storage[io_apic_num]->addr + MEM_PHYS_OFFSET;
     mmoutd(base, reg);
     return mmind(base + 4);
 }
 
 static void io_apic_write(size_t io_apic_num, uint32_t reg, uint32_t data) {
-    uint8_t *base = (uint8_t *)(uintptr_t)madt_io_apics[io_apic_num]->addr + MEM_PHYS_OFFSET;
+    uint8_t *base = (uint8_t *)(uintptr_t)madt_io_apics.storage[io_apic_num]->addr + MEM_PHYS_OFFSET;
     mmoutd(base, reg);
     mmoutd(base + 4, data);
 }
@@ -66,8 +67,8 @@ static uint32_t io_apic_get_max_redirect(size_t io_apic_num) {
 
 // Return the index of the I/O APIC that handles this redirect
 static ssize_t io_apic_from_redirect(uint32_t gsi) {
-    for (size_t i = 0; i < madt_io_apics.length(); i++) {
-        if (madt_io_apics[i]->gsib <= gsi && madt_io_apics[i]->gsib + io_apic_get_max_redirect(i) > gsi)
+    for (size_t i = 0; i < madt_io_apics.length; i++) {
+        if (madt_io_apics.storage[i]->gsib <= gsi && madt_io_apics.storage[i]->gsib + io_apic_get_max_redirect(i) > gsi)
             return i;
     }
 
@@ -96,18 +97,18 @@ void io_apic_set_gsi_redirect(uint8_t lapic_id, uint8_t vec, uint32_t gsi, uint1
 
     // Set target APIC ID
     redirect |= ((uint64_t)lapic_id) << 56;
-    uint32_t ioredtbl = (gsi - madt_io_apics[io_apic]->gsib) * 2 + 16;
+    uint32_t ioredtbl = (gsi - madt_io_apics.storage[io_apic]->gsib) * 2 + 16;
 
     io_apic_write(io_apic, ioredtbl + 0, (uint32_t)redirect);
     io_apic_write(io_apic, ioredtbl + 1, (uint32_t)(redirect >> 32));
 }
 
 void io_apic_set_irq_redirect(uint8_t lapic_id, uint8_t vec, uint8_t irq, bool status) {
-    for (size_t i = 0; i < madt_isos.length(); i++) {
-        if (madt_isos[i]->irq_source == irq) {
+    for (size_t i = 0; i < madt_isos.length; i++) {
+        if (madt_isos.storage[i]->irq_source == irq) {
             print("apic: IRQ %u used by override.\n", irq);
-            io_apic_set_gsi_redirect(lapic_id, vec, madt_isos[i]->gsi,
-                                     madt_isos[i]->flags, status);
+            io_apic_set_gsi_redirect(lapic_id, vec, madt_isos.storage[i]->gsi,
+                                     madt_isos.storage[i]->flags, status);
             return;
         }
     }
@@ -124,7 +125,7 @@ void lapic_timer_oneshot(uint8_t vector, uint64_t us) {
     wrmsr(IA32_TSC_DEADLINE, target);
 }
 
-void apic_init() {
+void apic_init(void) {
     lapic_mmio_base = (uint8_t *)(uintptr_t)madt->local_controller_addr + MEM_PHYS_OFFSET;
     lapic_eoi_ptr = (uint32_t *)(lapic_mmio_base + LAPIC_REG_EOI);
     lapic_enable(0xff);

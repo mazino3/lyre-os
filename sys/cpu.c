@@ -1,8 +1,8 @@
 #include <stddef.h>
 #include <stdint.h>
-#include <sys/cpu.hpp>
-#include <lib/print.hpp>
-#include <sys/hpet.hpp>
+#include <sys/cpu.h>
+#include <lib/print.h>
+#include <sys/hpet.h>
 
 uint64_t cpu_tsc_frequency;
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <stdint.h>
-#include <lib/asm.hpp>
+#include <lib/asm.h>
 
 static inline void mmoutb(void *addr, uint8_t value) {
     asm volatile (

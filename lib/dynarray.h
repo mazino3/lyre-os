@@ -17,6 +17,9 @@
 #define DYNARRAY_GLOBAL(THIS) \
     typeof(THIS) THIS = {0}
 
+#define DYNARRAY_STATIC(TYPE, THIS) \
+    static DYNARRAY_STRUCT(TYPE) THIS = {0}
+
 #define DYNARRAY_NEW(TYPE, THIS) \
     DYNARRAY_STRUCT(TYPE) THIS = {0}
 

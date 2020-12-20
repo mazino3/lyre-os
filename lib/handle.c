@@ -19,6 +19,12 @@ static ssize_t stub_write(struct handle *this, const void *buf, size_t count) {
     return -1;
 }
 
+static int stub_ioctl(struct handle *this, int request, ...) {
+    (void)this;
+    (void)request;
+    return -1;
+}
+
 void *handle_create(size_t actual_size) {
     struct handle *new_handle = alloc(actual_size);
 
@@ -26,6 +32,7 @@ void *handle_create(size_t actual_size) {
 
     new_handle->read  = stub_read;
     new_handle->write = stub_write;
+    new_handle->ioctl = stub_ioctl;
 
     return new_handle;
 }

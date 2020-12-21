@@ -5,21 +5,16 @@
 #include <lib/types.h>
 #include <lib/handle.h>
 
-enum vfs_node_event {
-    VFS_NODE_NO_EVENT,
-    VFS_NODE_POPULATE_EVENT
-};
-
 struct filesystem {
-    char name[256];
+    const char *name;
+    bool needs_backing_device;
     struct vfs_node *(*mount)(struct handle *device);
-    struct vfs_node *(*populate)(void *mount, struct stat *st);
-    struct handle *(*open)(void *mount, struct stat *st);
+    struct handle *(*open)(struct vfs_node *node, bool new_node);
 };
 
 struct vfs_node {
-    char name[256];
-    enum vfs_node_event event_pending;
+    char name[NAME_MAX];
+    bool (*callback)(struct vfs_node *this);
     struct stat st;
     void *mount;
     struct filesystem *fs;
@@ -28,9 +23,11 @@ struct vfs_node {
     struct vfs_node *next;
 };
 
+struct vfs_node *vfs_new_node(struct vfs_node *parent, const char *name);
+void vfs_dump_nodes(struct vfs_node *node, const char *parent);
 void vfs_get_absolute_path(char *path_ptr, const char *path, const char *pwd);
 bool vfs_install_fs(struct filesystem *fs);
 bool vfs_mount(const char *source, const char *target, const char *fs);
-struct handle *vfs_open(const char *path, int oflags, ...);
+struct handle *vfs_open(const char *path, int oflags, mode_t mode);
 
 #endif

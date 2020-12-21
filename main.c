@@ -10,6 +10,8 @@
 #include <lib/print.h>
 #include <lib/alarm.h>
 #include <acpi/acpi.h>
+#include <fs/vfs.h>
+#include <fs/tmpfs.h>
 
 void main(struct stivale_struct *stivale_struct) {
     gdt_init();
@@ -27,6 +29,14 @@ void main(struct stivale_struct *stivale_struct) {
     alarm_init();
 
     //pci_init();
+
+    vfs_dump_nodes(NULL, "");
+    vfs_install_fs(&tmpfs);
+    vfs_mount("", "/", "tmpfs");
+    struct handle *h = vfs_open("/test.txt", O_RDWR | O_CREAT, 0644);
+    if (h == NULL)
+        print("a\n");
+    vfs_dump_nodes(NULL, "");
 
     for (;;) {
         asm volatile ("hlt":::"memory");

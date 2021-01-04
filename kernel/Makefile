@@ -8,11 +8,10 @@ IMAGE     := ${REPODIR}/lyre.hdd
 # Compilers, several programs and their flags.
 CC   = gcc
 AS   = nasm
-LD   = ld
 
 CFLAGS    = -Wall -Wextra -O2
 ASFLAGS   =
-LDFLAGS   = -gc-sections -O2
+LDFLAGS   = -O2
 
 CHARDFLAGS := ${CFLAGS} -std=gnu11 -fplan9-extensions -masm=intel -fno-pic -mno-80387 -mno-mmx \
     -mno-sse -mno-sse2 -mno-red-zone -mcmodel=kernel -ffreestanding \
@@ -31,7 +30,7 @@ OBJ       := $(CSOURCE:.c=.o) $(ASMSOURCE:.asm=.o)
 all: ${KERNEL}
 
 ${KERNEL}: ${OBJ}
-	${LD} ${LDHARDFLAGS} ${OBJ} -T ${REPODIR}/linker.ld -o $@
+	${CC} ${LDHARDFLAGS} ${OBJ} -T ${REPODIR}/linker.ld -o $@
 
 %.o: %.c
 	${CC} ${CHARDFLAGS} -I${REPODIR} -c $< -o $@

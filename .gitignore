@@ -1,3 +1,8 @@
+root/etc/localtime
+root/lib/ld.so
+build
+ports
+mlibc*
 limine
 *.o
 *.hdd

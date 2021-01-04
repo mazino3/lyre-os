@@ -199,6 +199,11 @@ bool vfs_mount(const char *source, const char *target, const char *fstype) {
 
     struct handle *src_handle = NULL;
     if (fs->needs_backing_device) {
+        struct vfs_node *backing_dev_node = path2node(source, NULL);
+        if (backing_dev_node == NULL)
+            return false;
+        if (!S_ISCHR(backing_dev_node->st.st_mode) && !S_ISBLK(backing_dev_node->st.st_mode))
+            return false;
         struct handle *src_handle = vfs_open(source, O_RDWR, 0);
         if (src_handle == NULL)
             return false;

@@ -5,7 +5,7 @@
 #include <sys/hpet.h>
 #include <sys/cpu.h>
 #include <mm/pmm.h>
-#include <limine/stivale/stivale.h>
+#include <stivale/stivale.h>
 #include <lib/dmesg.h>
 #include <lib/print.h>
 #include <lib/alarm.h>

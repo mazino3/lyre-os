@@ -3,21 +3,27 @@
 
 #include <stdbool.h>
 #include <lib/types.h>
-#include <lib/handle.h>
+#include <lib/resource.h>
+#include <lib/lock.h>
+
+extern lock_t vfs_lock;
 
 struct filesystem {
     const char *name;
     bool needs_backing_device;
-    struct vfs_node *(*mount)(struct handle *device);
-    struct handle *(*open)(struct vfs_node *node, bool new_node);
+    struct vfs_node *(*mount)(struct resource *device);
+    struct vfs_node *(*populate)(struct vfs_node *node);
+    struct resource *(*open)(struct vfs_node *node, bool new_node, mode_t mode);
 };
+
+#define VFS_ROOT_INODE ((ino_t)0xffffffffffffffff)
 
 struct vfs_node {
     char name[NAME_MAX];
-    bool (*callback)(struct vfs_node *this);
-    struct stat st;
-    void *mount;
+    struct resource *res;
+    void *mount_data;
     dev_t backing_dev_id;
+    ino_t parent_inode;
     struct filesystem *fs;
     struct vfs_node *mount_gate;
     struct vfs_node *child;
@@ -29,7 +35,7 @@ void vfs_dump_nodes(struct vfs_node *node, const char *parent);
 void vfs_get_absolute_path(char *path_ptr, const char *path, const char *pwd);
 bool vfs_install_fs(struct filesystem *fs);
 bool vfs_mount(const char *source, const char *target, const char *fs);
-struct handle *vfs_open(const char *path, int oflags, mode_t mode);
+struct resource *vfs_open(const char *path, int oflags, mode_t mode);
 bool vfs_stat(const char *path, struct stat *st);
 
 #endif

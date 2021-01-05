@@ -33,10 +33,18 @@ void main(struct stivale_struct *stivale_struct) {
     vfs_dump_nodes(NULL, "");
     vfs_install_fs(&tmpfs);
     vfs_mount("", "/", "tmpfs");
-    struct handle *h = vfs_open("/test.txt", O_RDWR | O_CREAT, 0644);
+    struct resource *h = vfs_open("/test.txt", O_RDWR | O_CREAT, 0644);
     if (h == NULL)
         print("a\n");
     vfs_dump_nodes(NULL, "");
+    h->write(h, "hello world", 0, 11);
+
+    struct resource *h1 = vfs_open("/test.txt", O_RDWR, 0644);
+    if (h1 == NULL)
+        print("b\n");
+    char buf[20] = {0};
+    h1->read(h1, buf, 0, 11);
+    print(buf);
 
     for (;;) {
         asm volatile ("hlt":::"memory");

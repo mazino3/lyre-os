@@ -111,7 +111,7 @@ void print(const char *fmt, ...) {
     char buf[MAX_PRINT_BUF_SIZE];
     vsnprint(buf, MAX_PRINT_BUF_SIZE, fmt, args);
 
-    dmesg->write(dmesg, buf, strlen(buf));
+    dmesg->write(dmesg, buf, 0, strlen(buf));
 
     debug_log(buf);
 

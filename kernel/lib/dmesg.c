@@ -26,7 +26,7 @@ static ssize_t dmesg_write(typeof(dmesg) this, const void *buf, size_t size) {
 }
 
 static void dmesg_init(void) {
-    dmesg = handle_create(sizeof(dmesg));
+    dmesg = resource_create(sizeof(dmesg));
 
     dmesg->enabled  = false;
     dmesg->buf_size = 0;

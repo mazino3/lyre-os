@@ -4,6 +4,9 @@
 #include <lib/dynarray.h>
 #include <lib/print.h>
 #include <dev/dev.h>
+#include <lib/lock.h>
+
+lock_t vfs_lock = {0};
 
 DYNARRAY_STATIC(struct filesystem *, filesystems);
 
@@ -80,15 +83,23 @@ term:
     }
 }
 
+static struct resource root_res = {
+    .st = {
+        .st_mode = S_IFDIR,
+        .st_ino  = VFS_ROOT_INODE
+    }
+};
+
 static struct vfs_node root_node = {
-    .name          = "/",
-    .st            = { .st_mode = S_IFDIR },
-    .callback      = NULL,
-    .mount         = NULL,
-    .fs            = NULL,
-    .mount_gate    = NULL,
-    .child         = NULL,
-    .next          = NULL
+    .name           = "/",
+    .res            = &root_res,
+    .mount_data     = NULL,
+    .fs             = NULL,
+    .mount_gate     = NULL,
+    .child          = NULL,
+    .next           = NULL,
+    .backing_dev_id = 0,
+    .parent_inode   = 0
 };
 
 static struct vfs_node *path2node(const char *_path, bool *create) {
@@ -141,7 +152,7 @@ next:;
             return cur_node;
         }
 
-        if (!S_ISDIR(cur_node->st.st_mode) || !S_ISLNK(cur_node->st.st_mode)) {
+        if (!S_ISDIR(cur_node->res->st.st_mode)) {
             // errno = ENOTDIR;
             return NULL;
         }
@@ -149,11 +160,13 @@ next:;
         if (cur_node->mount_gate != NULL)
             cur_node = cur_node->mount_gate;
 
-        if (cur_node->callback != NULL && !cur_node->callback(cur_node))
-            return NULL;
-
-        if (cur_node->child == NULL)
-            return NULL;
+        if (cur_node->child == NULL) {
+            cur_node->child = cur_node->fs->populate(cur_node);
+            if (cur_node->child == NULL) {
+                // errno = ENOTDIR;
+                return NULL;
+            }
+        }
 
         cur_parent = cur_node;
         cur_node   = cur_node->child;
@@ -193,23 +206,24 @@ bool vfs_mount(const char *source, const char *target, const char *fstype) {
     if (tgt_node == NULL)
         return false;
 
-    if (!S_ISDIR(tgt_node->st.st_mode)) {
+    if (!S_ISDIR(tgt_node->res->st.st_mode)) {
         // errno = ENOTDIR;
         return false;
     }
 
     dev_t backing_dev_id;
-    struct handle *src_handle = NULL;
+    struct resource *src_handle = NULL;
     if (fs->needs_backing_device) {
         struct vfs_node *backing_dev_node = path2node(source, NULL);
         if (backing_dev_node == NULL)
             return false;
-        if (!S_ISCHR(backing_dev_node->st.st_mode) && !S_ISBLK(backing_dev_node->st.st_mode))
+        if (!S_ISCHR(backing_dev_node->res->st.st_mode)
+         && !S_ISBLK(backing_dev_node->res->st.st_mode))
             return false;
-        struct handle *src_handle = vfs_open(source, O_RDWR, 0);
+        struct resource *src_handle = vfs_open(source, O_RDWR, 0);
         if (src_handle == NULL)
             return false;
-        backing_dev_id = backing_dev_node->st.st_rdev;
+        backing_dev_id = backing_dev_node->res->st.st_rdev;
     } else {
         backing_dev_id = dev_new_id();
     }
@@ -236,47 +250,68 @@ struct vfs_node *vfs_new_node(struct vfs_node *parent, const char *name) {
     parent->child  = new_node;
 
     strcpy(new_node->name, name);
-    new_node->mount = parent->mount;
-    new_node->fs    = parent->fs;
-    new_node->st.st_dev = parent->st.st_dev;
+    new_node->fs             = parent->fs;
+    new_node->mount_data     = parent->mount_data;
+    new_node->backing_dev_id = parent->backing_dev_id;
+    new_node->parent_inode   = parent->res->st.st_ino;
 
     return new_node;
 }
 
-struct handle *vfs_open(const char *path, int oflags, mode_t mode) {
-    (void)oflags;
+struct resource *vfs_open(const char *path, int oflags, mode_t mode) {
+    SPINLOCK_ACQUIRE(vfs_lock);
 
     bool create = oflags & O_CREAT;
     struct vfs_node *path_node = path2node(path, &create);
-    if (path_node == NULL)
+    if (path_node == NULL) {
+        LOCK_RELEASE(vfs_lock);
         return NULL;
+    }
 
-    if (create)
-        path_node->st.st_mode = mode;
+    if (path_node->res == NULL)
+        path_node->res = path_node->fs->open(path_node, create, mode);
 
-    struct handle *handle = path_node->fs->open(path_node, create);
+    if (path_node->res == NULL) {
+        LOCK_RELEASE(vfs_lock);
+        return NULL;
+    }
 
-    return handle;
+    struct resource *res = path_node->res;
+
+    SPINLOCK_ACQUIRE(res->lock);
+    res->refcount++;
+    LOCK_RELEASE(res->lock);
+
+    LOCK_RELEASE(vfs_lock);
+
+    return res;
 }
 
 void vfs_dump_nodes(struct vfs_node *node, const char *parent) {
     struct vfs_node *cur_node = node ? node : &root_node;
     while (cur_node) {
         print("%s - %s\n", parent, cur_node->name);
-        if (cur_node->mount_gate != NULL && cur_node->mount_gate->child != NULL)
+        if (cur_node->mount_gate != NULL && cur_node->mount_gate->child != NULL) {
             vfs_dump_nodes(cur_node->mount_gate->child, cur_node->name);
-        else if (cur_node->child != NULL)
+        } else if (cur_node->child != NULL) {
             vfs_dump_nodes(cur_node->child, cur_node->name);
+        }
         cur_node = cur_node->next;
     }
 }
 
 bool vfs_stat(const char *path, struct stat *st) {
-    struct handle *h = vfs_open(path, O_RDONLY, 0);
-    if (h == NULL)
-        return false;
+    SPINLOCK_ACQUIRE(vfs_lock);
 
-    *st = h->st;
-    h->close(h);
+    struct vfs_node *node = path2node(path, NULL);
+    if (node == NULL) {
+        // errno = ENOENT;
+        LOCK_RELEASE(vfs_lock);
+        return false;
+    }
+
+    *st = node->res->st;
+
+    LOCK_RELEASE(vfs_lock);
     return true;
 }

@@ -17,6 +17,7 @@ struct vfs_node {
     bool (*callback)(struct vfs_node *this);
     struct stat st;
     void *mount;
+    dev_t backing_dev_id;
     struct filesystem *fs;
     struct vfs_node *mount_gate;
     struct vfs_node *child;
@@ -29,5 +30,6 @@ void vfs_get_absolute_path(char *path_ptr, const char *path, const char *pwd);
 bool vfs_install_fs(struct filesystem *fs);
 bool vfs_mount(const char *source, const char *target, const char *fs);
 struct handle *vfs_open(const char *path, int oflags, mode_t mode);
+bool vfs_stat(const char *path, struct stat *st);
 
 #endif

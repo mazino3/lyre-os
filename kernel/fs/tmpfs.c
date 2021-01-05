@@ -48,6 +48,11 @@ static ssize_t tmpfs_write(struct tmpfs_handle *this, const void *buf, size_t of
     return count;
 }
 
+static int tmpfs_close(struct tmpfs_handle *this) {
+    free((void *)this->f);
+    free(this);
+    return 0;
+}
 
 static struct handle *tmpfs_open(struct vfs_node *node, bool new_node) {
     struct tmpfs_handle *handle = handle_create(sizeof(struct tmpfs_handle));
@@ -61,8 +66,10 @@ static struct handle *tmpfs_open(struct vfs_node *node, bool new_node) {
 
     handle->f     = (void *)node->st.st_ino;
     handle->node  = node;
+    handle->close = (void *)tmpfs_close;
     handle->read  = (void *)tmpfs_read;
     handle->write = (void *)tmpfs_write;
+    handle->st    = node->st;
 
     return (void *)handle;
 }

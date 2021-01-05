@@ -3,6 +3,7 @@
 #include <fs/vfs.h>
 #include <lib/dynarray.h>
 #include <lib/print.h>
+#include <dev/dev.h>
 
 DYNARRAY_STATIC(struct filesystem *, filesystems);
 
@@ -197,6 +198,7 @@ bool vfs_mount(const char *source, const char *target, const char *fstype) {
         return false;
     }
 
+    dev_t backing_dev_id;
     struct handle *src_handle = NULL;
     if (fs->needs_backing_device) {
         struct vfs_node *backing_dev_node = path2node(source, NULL);
@@ -207,6 +209,9 @@ bool vfs_mount(const char *source, const char *target, const char *fstype) {
         struct handle *src_handle = vfs_open(source, O_RDWR, 0);
         if (src_handle == NULL)
             return false;
+        backing_dev_id = backing_dev_node->st.st_rdev;
+    } else {
+        backing_dev_id = dev_new_id();
     }
 
     struct vfs_node *mount_gate = fs->mount(src_handle);
@@ -214,6 +219,8 @@ bool vfs_mount(const char *source, const char *target, const char *fstype) {
         // vfs_close(src_handle);
         return false;
     }
+
+    mount_gate->backing_dev_id = backing_dev_id;
 
     tgt_node->mount_gate = mount_gate;
 
@@ -231,6 +238,7 @@ struct vfs_node *vfs_new_node(struct vfs_node *parent, const char *name) {
     strcpy(new_node->name, name);
     new_node->mount = parent->mount;
     new_node->fs    = parent->fs;
+    new_node->st.st_dev = parent->st.st_dev;
 
     return new_node;
 }
@@ -261,4 +269,14 @@ void vfs_dump_nodes(struct vfs_node *node, const char *parent) {
             vfs_dump_nodes(cur_node->child, cur_node->name);
         cur_node = cur_node->next;
     }
+}
+
+bool vfs_stat(const char *path, struct stat *st) {
+    struct handle *h = vfs_open(path, O_RDONLY, 0);
+    if (h == NULL)
+        return false;
+
+    *st = h->st;
+    h->close(h);
+    return true;
 }

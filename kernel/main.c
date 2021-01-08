@@ -5,6 +5,7 @@
 #include <sys/hpet.h>
 #include <sys/cpu.h>
 #include <mm/pmm.h>
+#include <mm/vmm.h>
 #include <stivale/stivale.h>
 #include <lib/dmesg.h>
 #include <lib/print.h>
@@ -14,14 +15,18 @@
 #include <fs/tmpfs.h>
 
 void main(struct stivale_struct *stivale_struct) {
+    stivale_struct = (void *)stivale_struct + MEM_PHYS_OFFSET;
+
     gdt_init();
     idt_init();
-    pmm_init((void *)stivale_struct->memory_map_addr,
+    pmm_init((void *)stivale_struct->memory_map_addr + MEM_PHYS_OFFSET,
+             stivale_struct->memory_map_entries);
+    vmm_init((void *)stivale_struct->memory_map_addr + MEM_PHYS_OFFSET,
              stivale_struct->memory_map_entries);
     dmesg_enable();
     print("Lyre says hello world!\n");
 
-    acpi_init((void *)stivale_struct->rsdp);
+    acpi_init((void *)stivale_struct->rsdp + MEM_PHYS_OFFSET);
     apic_init();
     hpet_init();
     cpu_init();

@@ -96,10 +96,10 @@ static struct vfs_node root_node = {
     .mount_data     = NULL,
     .fs             = NULL,
     .mount_gate     = NULL,
+    .parent         = NULL,
     .child          = NULL,
     .next           = NULL,
-    .backing_dev_id = 0,
-    .parent_inode   = 0
+    .backing_dev_id = 0
 };
 
 static struct vfs_node *path2node(const char *_path, bool *create) {
@@ -253,7 +253,7 @@ struct vfs_node *vfs_new_node(struct vfs_node *parent, const char *name) {
     new_node->fs             = parent->fs;
     new_node->mount_data     = parent->mount_data;
     new_node->backing_dev_id = parent->backing_dev_id;
-    new_node->parent_inode   = parent->res->st.st_ino;
+    new_node->parent         = parent;
 
     return new_node;
 }

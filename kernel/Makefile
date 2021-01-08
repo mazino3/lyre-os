@@ -9,9 +9,9 @@ IMAGE     := ${REPODIR}/lyre.hdd
 CC   = gcc
 AS   = nasm
 
-CFLAGS    = -Wall -Wextra -O2
-ASFLAGS   =
-LDFLAGS   = -O2
+CFLAGS    = -Wall -Wextra -g -O2
+ASFLAGS   = -F dwarf -g
+LDFLAGS   = -Og
 
 CHARDFLAGS := ${CFLAGS} -std=gnu11 -fplan9-extensions -masm=intel -fno-pic -mno-80387 -mno-mmx \
     -mno-sse -mno-sse2 -mno-red-zone -mcmodel=kernel -ffreestanding \

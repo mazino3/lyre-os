@@ -23,9 +23,9 @@ struct vfs_node {
     struct resource *res;
     void *mount_data;
     dev_t backing_dev_id;
-    ino_t parent_inode;
     struct filesystem *fs;
     struct vfs_node *mount_gate;
+    struct vfs_node *parent;
     struct vfs_node *child;
     struct vfs_node *next;
 };

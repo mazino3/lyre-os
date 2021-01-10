@@ -99,7 +99,7 @@ diff '--color=auto' -urN gcc-10.2.0/libgcc/config.host gcc-10.2.0-patched/libgcc
  	;;
  avr-*-*)
  	cpu_type=avr
--	;;
+-	;;    
 +	;;
  bfin*-*)
  	cpu_type=bfin
@@ -130,7 +130,7 @@ diff '--color=auto' -urN gcc-10.2.0/libgcc/config.host gcc-10.2.0-patched/libgcc
  lm32-*-uclinux*)
          extra_parts="$extra_parts crtbegin.o crtendS.o crtbeginT.o"
          tmake_file="lm32/t-lm32 lm32/t-uclinux t-libgcc-pic t-softfp-sfdf t-softfp"
--	;;
+-	;;	
 +	;;
  m32r-*-elf*)
  	tmake_file="$tmake_file m32r/t-m32r t-fdpbit"
@@ -141,7 +141,7 @@ diff '--color=auto' -urN gcc-10.2.0/libstdc++-v3/crossconfig.m4 gcc-10.2.0-patch
 @@ -131,6 +131,14 @@
      AC_CHECK_FUNCS(sockatmark)
      ;;
-
+ 
 +  *-lyre*)
 +    GLIBCXX_CHECK_COMPILER_FEATURES
 +    GLIBCXX_CHECK_LINKER_FEATURES
@@ -159,7 +159,7 @@ diff '--color=auto' -urN gcc-10.2.0/libtool.m4 gcc-10.2.0-patched/libtool.m4
 @@ -2499,6 +2499,16 @@
    dynamic_linker='GNU/Linux ld.so'
    ;;
-
+ 
 +lyre*)
 +  version_type=linux
 +  need_lib_prefix=no
@@ -176,7 +176,7 @@ diff '--color=auto' -urN gcc-10.2.0/libtool.m4 gcc-10.2.0-patched/libtool.m4
 @@ -3098,6 +3108,10 @@
    lt_cv_deplibs_check_method=pass_all
    ;;
-
+ 
 +lyre*)
 +  lt_cv_deplibs_check_method=pass_all
 +  ;;

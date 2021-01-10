@@ -1,5 +1,4 @@
-root/etc/localtime
-root/lib/ld.so
+build-root
 build
 ports
 mlibc*

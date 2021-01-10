@@ -64,23 +64,20 @@ fi
 limine/limine-install lyre.hdd
 
 # Prepare root
-install -m 644 $LYRE_DIR/lyre.elf root/
-install -d root/etc
-install -m 644 /etc/localtime root/etc/
-install -d root/lib
-install "$BUILD_DIR/system-root/usr/lib/ld.so" root/lib/
+cp -r root/* "$BUILD_DIR"/system-root/
+
+install -m 644 "$LYRE_DIR"/lyre.elf "$BUILD_DIR"/system-root/
+install -d "$BUILD_DIR"/system-root/etc
+install -m 644 /etc/localtime "$BUILD_DIR"/system-root/etc/
+install -d "$BUILD_DIR"/system-root/lib
+install "$BUILD_DIR"/system-root/usr/lib/ld.so "$BUILD_DIR"/system-root/lib/
 
 if [ "$USE_FUSE" = "no" ]; then
     ./copy-root-to-img.sh "$BUILD_DIR"/system-root lyre.hdd 0
-    ./copy-root-to-img.sh root lyre.hdd 0
 else
     mkdir -p mnt
     echfs-fuse --mbr -p0 lyre.hdd mnt
-    while ! rsync -ru --copy-links --info=progress2 "$BUILD_DIR"/system-root/* mnt; do
-        true
-    done # FIXME: This while loop only exists because of an issue in echfs-fuse that makes it fail randomly.
-    sync
-    rsync -ru --copy-links --info=progress2 root/* mnt
+    rsync -ru --copy-links --info=progress2 "$BUILD_DIR"/system-root/* mnt
     sync
     fusermount -u mnt/
     rm -rf ./mnt

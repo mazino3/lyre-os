@@ -101,9 +101,13 @@ static void prn_x(char *print_buf, size_t limit, size_t *print_buf_i, uint64_t x
     prn_str(print_buf, limit, print_buf_i, buf + i);
 }
 
+static lock_t print_lock = {0};
+
 #define MAX_PRINT_BUF_SIZE 256
 
 void print(const char *fmt, ...) {
+    SPINLOCK_ACQUIRE(print_lock);
+
     va_list args;
     va_start(args, fmt);
 
@@ -116,6 +120,8 @@ void print(const char *fmt, ...) {
     debug_log(buf);
 
     va_end(args);
+
+    LOCK_RELEASE(print_lock);
 }
 
 size_t vsnprint(char *print_buf, size_t limit, const char *fmt, va_list args) {

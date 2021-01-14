@@ -3,17 +3,59 @@
 #include <sys/cpu.h>
 #include <lib/print.h>
 #include <sys/hpet.h>
+#include <stivale/stivale2.h>
+#include <lib/lock.h>
+#include <lib/alloc.h>
+#include <mm/pmm.h>
+#include <mm/vmm.h>
+#include <sys/gdt.h>
 
-uint64_t cpu_tsc_frequency;
+struct cpu_local *cpu_locals;
+
+static void cpu_init(struct stivale2_smp_info *smp_info);
+
+static uint32_t bsp_lapic_id;
+
+void smp_init(struct stivale2_struct_tag_smp *smp_tag) {
+    print("smp: BSP LAPIC ID:    %x\n", smp_tag->bsp_lapic_id);
+    print("smp: Total CPU count: %U\n", smp_tag->cpu_count);
+
+    bsp_lapic_id = smp_tag->bsp_lapic_id;
+
+    cpu_locals = alloc(sizeof(struct cpu_local) * smp_tag->cpu_count);
+
+    for (size_t i = 0; i < smp_tag->cpu_count; i++) {
+        LOCKED_WRITE(smp_tag->smp_info[i].extra_argument, (uint64_t)&cpu_locals[i]);
+        if (smp_tag->smp_info[i].lapic_id == bsp_lapic_id) {
+            cpu_init(((void *)&smp_tag->smp_info[i]) - MEM_PHYS_OFFSET);
+            continue;
+        }
+        cpu_locals[i].cpu_number = i;
+        uint64_t stack = (uintptr_t)pmm_alloc(1) + MEM_PHYS_OFFSET;
+        LOCKED_WRITE(smp_tag->smp_info[i].target_stack,   stack);
+        LOCKED_WRITE(smp_tag->smp_info[i].goto_address,   (uint64_t)cpu_init);
+    }
+}
 
 #define MAX_TSC_CALIBRATIONS 4
 
-size_t cpu_fpu_storage_size;
+static lock_t cpu_init_lock = {0};
 
-void (*cpu_fpu_save)(void *);
-void (*cpu_fpu_restore)(void *);
+static void cpu_init(struct stivale2_smp_info *smp_info) {
+    SPINLOCK_ACQUIRE(cpu_init_lock);
 
-void cpu_init() {
+    smp_info = (void *)smp_info + MEM_PHYS_OFFSET;
+
+    gdt_reload();
+    vmm_switch_pagemap(kernel_pagemap);
+
+    // Load CPU local address in gsbase
+    wrmsr(0xc0000101, (uintptr_t)smp_info->extra_argument);
+
+    print("cpu: Processor #%u launched\n", this_cpu->cpu_number);
+
+    this_cpu->lapic_id = smp_info->lapic_id;
+
     // First enable SSE/SSE2 as it is baseline for x86_64
     uint64_t cr0 = 0;
     cr0 = read_cr("0");
@@ -57,26 +99,26 @@ void cpu_init() {
         }
         wrxcr(0, xcr0);
 
-        cpu_fpu_storage_size = (size_t)c;
+        this_cpu->fpu_storage_size = (size_t)c;
 
-        cpu_fpu_save = xsave;
-        cpu_fpu_restore = xrstor;
+        this_cpu->fpu_save = xsave;
+        this_cpu->fpu_restore = xrstor;
     } else {
-        cpu_fpu_storage_size = 512; // Legacy size for fxsave
-        cpu_fpu_save = fxsave;
-        cpu_fpu_restore = fxrstor;
+        this_cpu->fpu_storage_size = 512; // Legacy size for fxsave
+        this_cpu->fpu_save = fxsave;
+        this_cpu->fpu_restore = fxrstor;
     }
 
     cpuid(0x1, 0, &a, &b, &c, &d);
     if (!(c & CPUID_TSC_DEADLINE)) {
         print("cpu: No TSC-deadline mode!!!\n");
-        for (;;);
+        //for (;;);
     }
     // Check for invariant TSC
     cpuid(0x80000007, 0, &a, &b, &c, &d);
     if (!(d & CPUID_INVARIANT_TSC)) {
         print("cpu: No invariant TSC!!!\n");
-        for (;;);
+        //for (;;);
     }
 
     // Calibrate the TSC
@@ -91,10 +133,16 @@ void cpu_init() {
         uint64_t freq = (final_tsc_reading - initial_tsc_reading) * 1000;
         print("cpu: TSC reading #%u yielded a frequency of %U Hz.\n", i, freq);
 
-        cpu_tsc_frequency += freq;
+        this_cpu->tsc_frequency += freq;
     }
 
     // Average out all readings
-    cpu_tsc_frequency /= MAX_TSC_CALIBRATIONS;
-    print("cpu: TSC frequency fixed at %U Hz.\n", cpu_tsc_frequency);
+    this_cpu->tsc_frequency /= MAX_TSC_CALIBRATIONS;
+    print("cpu: TSC frequency fixed at %U Hz.\n", this_cpu->tsc_frequency);
+
+    LOCK_RELEASE(cpu_init_lock);
+
+    if (this_cpu->lapic_id != bsp_lapic_id) {
+        for (;;) asm ("hlt");
+    }
 }

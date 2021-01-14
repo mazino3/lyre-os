@@ -89,6 +89,10 @@ void gdt_init() {
     gdt_pointer.size    = sizeof(gdt) - 1;
     gdt_pointer.address = (uint64_t)&gdt;
 
+    gdt_reload();
+}
+
+void gdt_reload(void) {
     asm volatile (
         "lgdt %0\n\t"
         "push rbp\n\t"

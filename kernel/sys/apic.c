@@ -119,7 +119,7 @@ void lapic_timer_oneshot(uint8_t vector, uint64_t us) {
     // Use TSC-deadline mode, set vector
     lapic_write(LAPIC_REG_TIMER, (0b10 << 17) | vector);
 
-    uint64_t ticks  = us * (cpu_tsc_frequency / 1000000);
+    uint64_t ticks  = us * (this_cpu->tsc_frequency / 1000000);
     uint64_t target = rdtsc() + ticks;
 
     wrmsr(IA32_TSC_DEADLINE, target);

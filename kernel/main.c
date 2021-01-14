@@ -35,7 +35,11 @@ void main(struct stivale2_struct *stivale2_struct) {
     acpi_init((void *)rsdp_tag->rsdp + MEM_PHYS_OFFSET);
     apic_init();
     hpet_init();
-    cpu_init();
+
+    struct stivale2_struct_tag_smp *smp_tag =
+        stivale2_get_tag(stivale2_struct, STIVALE2_STRUCT_TAG_SMP_ID);
+
+    smp_init(smp_tag);
 
     //pci_init();
 

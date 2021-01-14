@@ -3,10 +3,18 @@
 #include <stivale/stivale2.h>
 #include <mm/vmm.h>
 
+static struct stivale2_header_tag_smp smp_hdr_tag = {
+    .tag = {
+        .identifier = STIVALE2_HEADER_TAG_SMP_ID,
+        .next = 0
+    },
+    .flags = 0
+};
+
 static struct stivale2_header_tag_framebuffer framebuffer_hdr_tag = {
     .tag = {
         .identifier = STIVALE2_HEADER_TAG_FRAMEBUFFER_ID,
-        .next = 0
+        .next = (uintptr_t)&smp_hdr_tag
     },
     .framebuffer_width  = 0,
     .framebuffer_height = 0,

@@ -9,7 +9,6 @@
 #include <stivale/stivale.h>
 #include <lib/dmesg.h>
 #include <lib/print.h>
-#include <lib/alarm.h>
 #include <acpi/acpi.h>
 #include <fs/vfs.h>
 #include <fs/tmpfs.h>
@@ -30,8 +29,6 @@ void main(struct stivale_struct *stivale_struct) {
     apic_init();
     hpet_init();
     cpu_init();
-
-    alarm_init();
 
     //pci_init();
 

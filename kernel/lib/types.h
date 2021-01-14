@@ -16,6 +16,7 @@ typedef int64_t blksize_t;
 typedef int64_t blkcnt_t;
 
 typedef int32_t pid_t;
+typedef int32_t tid_t;
 typedef int32_t uid_t;
 typedef int32_t gid_t;
 

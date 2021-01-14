@@ -32,6 +32,8 @@ enum paging_type {
 
 struct pagemap;
 
+extern struct pagemap *kernel_pagemap;
+
 void vmm_init(struct stivale_mmap_entry *memmap, size_t memmap_entries);
 void vmm_switch_pagemap(struct pagemap *pagemap);
 struct pagemap *vmm_new_pagemap(enum paging_type paging_type);

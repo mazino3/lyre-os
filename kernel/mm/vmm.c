@@ -23,7 +23,7 @@ struct pagemap {
     //DYNARRAY_NEW(struct mmap_range *, mmap_ranges);
 };
 
-static struct pagemap *kernel_pagemap;
+struct pagemap *kernel_pagemap;
 
 void vmm_init(struct stivale_mmap_entry *memmap, size_t memmap_entries) {
     kernel_pagemap = vmm_new_pagemap(PAGING_4LV);

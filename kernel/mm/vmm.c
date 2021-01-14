@@ -148,7 +148,7 @@ static struct addr2range_hit addr2range(struct pagemap *pm, uintptr_t addr) {
     }
     return NULL;
 }
-/*
+
 void *mmap(struct pagemap *pm, void *addr, size_t length, int prot, int flags,
            struct resource *res, off_t offset) {
     print("mmap(pm: %X, addr: %X, len: %X,\n"

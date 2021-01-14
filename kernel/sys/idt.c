@@ -57,6 +57,12 @@ void idt_init() {
     for (size_t i = 0; i < 256; i++)
         idt_register_interrupt_handler(i, int_thunks[i], 0, 0x8e);
 
+    idt_reload();
+
+    LOCK_RELEASE(idt_lock);
+}
+
+void idt_reload(void) {
     struct IDTPtr idt_ptr = {
         sizeof(idt) - 1,
         (uint64_t)idt
@@ -67,6 +73,4 @@ void idt_init() {
         :
         : "m" (idt_ptr)
     );
-
-    LOCK_RELEASE(idt_lock);
 }

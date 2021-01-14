@@ -20,14 +20,15 @@
 #define LAPIC_REG_TIMER_CURCNT  0x390
 #define LAPIC_REG_TIMER_DIV     0X3e0
 
-static uint8_t *lapic_mmio_base;
 uint32_t *lapic_eoi_ptr;
 
 static uint32_t lapic_read(uint32_t reg) {
+    void *lapic_mmio_base = (void *)(rdmsr(0x1b) & 0xfffff000) + MEM_PHYS_OFFSET;
     return mmind(lapic_mmio_base + reg);
 }
 
 static void lapic_write(uint32_t reg, uint32_t data) {
+    void *lapic_mmio_base = (void *)(rdmsr(0x1b) & 0xfffff000) + MEM_PHYS_OFFSET;
     mmoutd(lapic_mmio_base + reg, data);
 }
 
@@ -126,7 +127,7 @@ void lapic_timer_oneshot(uint8_t vector, uint64_t us) {
 }
 
 void apic_init(void) {
-    lapic_mmio_base = (uint8_t *)(uintptr_t)madt->local_controller_addr + MEM_PHYS_OFFSET;
+    void *lapic_mmio_base = (void *)(rdmsr(0x1b) & 0xfffff000) + MEM_PHYS_OFFSET;
     lapic_eoi_ptr = (uint32_t *)(lapic_mmio_base + LAPIC_REG_EOI);
     lapic_enable(0xff);
 

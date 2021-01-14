@@ -15,6 +15,7 @@ struct cpu_local *cpu_locals;
 static void cpu_init(struct stivale2_smp_info *smp_info);
 
 static uint32_t bsp_lapic_id;
+static size_t   cpus_online = 0;
 
 void smp_init(struct stivale2_struct_tag_smp *smp_tag) {
     print("smp: BSP LAPIC ID:    %x\n", smp_tag->bsp_lapic_id);
@@ -35,24 +36,25 @@ void smp_init(struct stivale2_struct_tag_smp *smp_tag) {
         LOCKED_WRITE(smp_tag->smp_info[i].target_stack,   stack);
         LOCKED_WRITE(smp_tag->smp_info[i].goto_address,   (uint64_t)cpu_init);
     }
+
+    while (LOCKED_READ(cpus_online) != smp_tag->cpu_count);
+
+    print("smp: All CPUs online\n");
 }
 
 #define MAX_TSC_CALIBRATIONS 4
 
-static lock_t cpu_init_lock = {0};
-
 static void cpu_init(struct stivale2_smp_info *smp_info) {
-    SPINLOCK_ACQUIRE(cpu_init_lock);
-
     smp_info = (void *)smp_info + MEM_PHYS_OFFSET;
 
     gdt_reload();
+    idt_reload();
     vmm_switch_pagemap(kernel_pagemap);
 
     // Load CPU local address in gsbase
     wrmsr(0xc0000101, (uintptr_t)smp_info->extra_argument);
 
-    print("cpu: Processor #%u launched\n", this_cpu->cpu_number);
+    print("smp: Processor #%u launched\n", this_cpu->cpu_number);
 
     this_cpu->lapic_id = smp_info->lapic_id;
 
@@ -140,7 +142,7 @@ static void cpu_init(struct stivale2_smp_info *smp_info) {
     this_cpu->tsc_frequency /= MAX_TSC_CALIBRATIONS;
     print("cpu: TSC frequency fixed at %U Hz.\n", this_cpu->tsc_frequency);
 
-    LOCK_RELEASE(cpu_init_lock);
+    LOCKED_INC(cpus_online);
 
     if (this_cpu->lapic_id != bsp_lapic_id) {
         for (;;) asm ("hlt");

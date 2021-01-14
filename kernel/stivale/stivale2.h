@@ -170,4 +170,6 @@ struct stivale2_struct_tag_pxe_server_info {
     uint32_t server_ip;
 } __attribute__((packed));
 
+void *stivale2_get_tag(struct stivale2_struct *stivale2_struct, uint64_t id);
+
 #endif

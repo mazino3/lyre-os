@@ -5,7 +5,7 @@
 #include <mm/pmm.h>
 #include <lib/lock.h>
 #include <lib/dynarray.h>
-#include <stivale/stivale.h>
+#include <stivale/stivale2.h>
 
 struct mmap_range {
     uintptr_t base;
@@ -25,7 +25,7 @@ struct pagemap {
 
 struct pagemap *kernel_pagemap;
 
-void vmm_init(struct stivale_mmap_entry *memmap, size_t memmap_entries) {
+void vmm_init(struct stivale2_mmap_entry *memmap, size_t memmap_entries) {
     kernel_pagemap = vmm_new_pagemap(PAGING_4LV);
 
     for (uintptr_t p = 0; p < 0x100000000; p += PAGE_SIZE) {

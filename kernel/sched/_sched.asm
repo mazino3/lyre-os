@@ -25,6 +25,8 @@ sched_spinup:
 extern reschedule
 global _reschedule
 _reschedule:
+    cld
+
     push r15
     push r14
     push r13

@@ -9,6 +9,8 @@
 #include <mm/pmm.h>
 #include <mm/vmm.h>
 #include <sys/gdt.h>
+#include <sys/idt.h>
+#include <sched/sched.h>
 
 struct cpu_local *cpu_locals;
 
@@ -33,8 +35,11 @@ void smp_init(struct stivale2_struct_tag_smp *smp_tag) {
         }
         cpu_locals[i].cpu_number = i;
         uint64_t stack = (uintptr_t)pmm_alloc(1) + MEM_PHYS_OFFSET;
-        LOCKED_WRITE(smp_tag->smp_info[i].target_stack,   stack);
-        LOCKED_WRITE(smp_tag->smp_info[i].goto_address,   (uint64_t)cpu_init);
+        uint64_t sched_stack = (uintptr_t)pmm_alloc(1) + MEM_PHYS_OFFSET;
+        cpu_locals[i].tss.rsp0 = stack;
+        cpu_locals[i].tss.ist1 = sched_stack;
+        LOCKED_WRITE(smp_tag->smp_info[i].target_stack, stack);
+        LOCKED_WRITE(smp_tag->smp_info[i].goto_address, (uint64_t)cpu_init);
     }
 
     while (LOCKED_READ(cpus_online) != smp_tag->cpu_count);
@@ -52,9 +57,12 @@ static void cpu_init(struct stivale2_smp_info *smp_info) {
     vmm_switch_pagemap(kernel_pagemap);
 
     // Load CPU local address in gsbase
-    wrmsr(0xc0000101, (uintptr_t)smp_info->extra_argument);
+    set_kernel_gs((uintptr_t)smp_info->extra_argument);
+    set_user_gs((uintptr_t)smp_info->extra_argument);
 
     print("smp: Processor #%u launched\n", this_cpu->cpu_number);
+
+    gdt_load_tss((uintptr_t)&this_cpu->tss);
 
     this_cpu->lapic_id = smp_info->lapic_id;
 
@@ -142,9 +150,13 @@ static void cpu_init(struct stivale2_smp_info *smp_info) {
     this_cpu->tsc_frequency /= MAX_TSC_CALIBRATIONS;
     print("cpu: TSC frequency fixed at %U Hz.\n", this_cpu->tsc_frequency);
 
+    lapic_enable(0xff);
+    sched_init();
+
     LOCKED_INC(cpus_online);
 
     if (this_cpu->lapic_id != bsp_lapic_id) {
+        asm ("sti");
         for (;;) asm ("hlt");
     }
 }

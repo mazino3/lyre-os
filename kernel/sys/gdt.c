@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <sys/gdt.h>
+#include <lib/lock.h>
 
 struct GDTEntry {
     uint16_t limit;
@@ -110,7 +111,9 @@ void gdt_reload(void) {
     );
 }
 
-void gdt_load_tss(size_t addr) {
+void gdt_load_tss(uintptr_t addr) {
+    static lock_t lock = {0};
+    SPINLOCK_ACQUIRE(lock);
     gdt.tss.base_low16   = (uint16_t)addr;
     gdt.tss.base_mid8    = (uint8_t)(addr >> 16);
     gdt.tss.flags1       = 0b10001001;
@@ -118,4 +121,8 @@ void gdt_load_tss(size_t addr) {
     gdt.tss.base_high8   = (uint8_t)(addr >> 24);
     gdt.tss.base_upper32 = (uint32_t)(addr >> 32);
     gdt.tss.reserved     = 0;
+
+    asm volatile ("ltr %0" : : "rm" ((uint16_t)0x28) : "memory");
+
+    LOCK_RELEASE(lock);
 }

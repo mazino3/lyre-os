@@ -14,7 +14,32 @@
 #include <acpi/acpi.h>
 #include <fs/vfs.h>
 #include <fs/tmpfs.h>
+#include <sched/sched.h>
 
+__attribute__((noreturn))
+static void main_thread(void *arg) {
+    vfs_dump_nodes(NULL, "");
+    vfs_install_fs(&tmpfs);
+    vfs_mount("", "/", "tmpfs");
+    struct resource *h = vfs_open("/test.txt", O_RDWR | O_CREAT, 0644);
+    if (h == NULL)
+        print("a\n");
+    vfs_dump_nodes(NULL, "");
+    h->write(h, "hello world\n", 0, 12);
+
+    struct resource *h1 = vfs_open("/test.txt", O_RDWR, 0644);
+    if (h1 == NULL)
+        print("b\n");
+    char buf[20] = {0};
+    h1->read(h1, buf, 0, 12);
+    print(buf);
+
+    print("CPU %u\n", this_cpu->cpu_number);
+
+    for (;;) asm ("hlt");
+}
+
+__attribute__((noreturn))
 void main(struct stivale2_struct *stivale2_struct) {
     stivale2_struct = (void *)stivale2_struct + MEM_PHYS_OFFSET;
 
@@ -41,25 +66,8 @@ void main(struct stivale2_struct *stivale2_struct) {
 
     smp_init(smp_tag);
 
-    //pci_init();
+    sched_new_thread(NULL, false, main_thread, (void*)0xdeadbeef, NULL, NULL, NULL);
 
-    vfs_dump_nodes(NULL, "");
-    vfs_install_fs(&tmpfs);
-    vfs_mount("", "/", "tmpfs");
-    struct resource *h = vfs_open("/test.txt", O_RDWR | O_CREAT, 0644);
-    if (h == NULL)
-        print("a\n");
-    vfs_dump_nodes(NULL, "");
-    h->write(h, "hello world", 0, 11);
-
-    struct resource *h1 = vfs_open("/test.txt", O_RDWR, 0644);
-    if (h1 == NULL)
-        print("b\n");
-    char buf[20] = {0};
-    h1->read(h1, buf, 0, 11);
-    print(buf);
-
-    for (;;) {
-        asm volatile ("hlt":::"memory");
-    }
+    asm ("sti");
+    for (;;) asm ("hlt");
 }

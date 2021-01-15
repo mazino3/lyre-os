@@ -129,7 +129,4 @@ void lapic_timer_oneshot(uint8_t vector, uint64_t us) {
 void apic_init(void) {
     void *lapic_mmio_base = (void *)(rdmsr(0x1b) & 0xfffff000) + MEM_PHYS_OFFSET;
     lapic_eoi_ptr = (uint32_t *)(lapic_mmio_base + LAPIC_REG_EOI);
-    lapic_enable(0xff);
-
-    print("apic: Init done.\n");
 }

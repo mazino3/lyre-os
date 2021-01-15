@@ -5,15 +5,39 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <lib/asm.h>
+#include <lib/types.h>
 #include <stivale/stivale2.h>
+
+struct cpu_tss {
+    uint32_t unused0;
+    uint64_t rsp0;
+    uint64_t rsp1;
+    uint64_t rsp2;
+    uint64_t unused1;
+    uint64_t ist1;
+    uint64_t ist2;
+    uint64_t ist3;
+    uint64_t ist4;
+    uint64_t ist5;
+    uint64_t ist6;
+    uint64_t ist7;
+    uint64_t unused2;
+    uint32_t iopb_offset;
+} __attribute__((packed));
+
+struct thread;
 
 struct cpu_local {
     uint64_t cpu_number;
+    uint64_t kernel_stack;
+    struct cpu_tss tss;
     uint32_t lapic_id;
     uint64_t tsc_frequency;
     size_t   fpu_storage_size;
     void   (*fpu_save)(void *);
     void   (*fpu_restore)(void *);
+    struct thread *current_thread;
+    ssize_t last_run_queue_index;
 };
 
 extern struct cpu_local *cpu_locals;
@@ -154,6 +178,18 @@ static inline void fxrstor(void *region) {
                   :
                   : "m" (FLAT_PTR(region))
                   : "memory");
+}
+
+static inline void set_kernel_gs(uintptr_t addr) {
+    wrmsr(0xc0000101, addr);
+}
+
+static inline void set_user_gs(uintptr_t addr) {
+    wrmsr(0xc0000102, addr);
+}
+
+static inline void swapgs(void) {
+    asm volatile ("swapgs" ::: "memory");
 }
 
 #endif

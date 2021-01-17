@@ -1,0 +1,25 @@
+lyre
+====
+
+lyre is a kernel and distro which aims at running xfce.
+
+Yes, running xfce is lyre's main goal.
+
+Building
+========
+
+Build the distro first, which includes toolchain and everything lyre needs with
+this command:
+
+  make distro
+
+Then build the kernel and image with:
+
+  make
+
+Try it in qemu with:
+
+  make run
+
+(it needs KVM because lyre depends on certain modern CPU features not emulated
+by qemu)

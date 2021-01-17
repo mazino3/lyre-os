@@ -24,7 +24,7 @@ else
 fi
 
 # Make sure BUILD_DIR is absolute
-BUILD_DIR="$(realpath $1)"
+BUILD_DIR="$(realpath "$1")"
 
 # lyre kernel
 LYRE_DIR="$(pwd)/kernel"
@@ -38,19 +38,19 @@ set -x
 make -C "$LYRE_DIR" CC="x86_64-lyre-gcc"
 
 if ! [ -f ./lyre.hdd ]; then
-    dd if=/dev/zero bs=1M count=0 seek=$IMGSIZE of=lyre.hdd
+    dd if=/dev/zero bs=1M count=0 seek="$IMGSIZE" of=lyre.hdd
 
     case "$OS" in
-        "FreeBSD")
-            sudo mdconfig -a -t vnode -f lyre.hdd -u md9
-            sudo gpart create -s mbr md9
-            sudo gpart add -a 4k -t '!14' md9
-            sudo mdconfig -d -u md9
-            ;;
-        "Linux")
-            parted -s lyre.hdd mklabel msdos
-            parted -s lyre.hdd mkpart primary 1 100%
-            ;;
+    "FreeBSD")
+        sudo mdconfig -a -t vnode -f lyre.hdd -u md9
+        sudo gpart create -s mbr md9
+        sudo gpart add -a 4k -t '!14' md9
+        sudo mdconfig -d -u md9
+        ;;
+    "Linux")
+        parted -s lyre.hdd mklabel msdos
+        parted -s lyre.hdd mkpart primary 1 100%
+        ;;
     esac
 
     echfs-utils -m -p0 lyre.hdd quick-format 32768

@@ -102,7 +102,13 @@ static struct vfs_node root_node = {
     .backing_dev_id = 0
 };
 
-static struct vfs_node *path2node(const char *_path, bool *create) {
+enum {
+    NO_CREATE = 0,
+    CREATE_SHALLOW,
+    CREATE_DEEP
+};
+
+static struct vfs_node *path2node(struct vfs_node *parent, const char *_path, int create) {
     char abs_path[strlen(_path) + 2];
     bool last = false;
 
@@ -111,15 +117,13 @@ static struct vfs_node *path2node(const char *_path, bool *create) {
     char *path = abs_path + 1;
 
     if (*path == 0) {
-        if (create != NULL)
-            *create = false;
         return &root_node;
     }
 
     if (root_node.mount_gate == NULL)
         return NULL;
 
-    struct vfs_node *cur_parent = NULL;
+    struct vfs_node *cur_parent = parent;
     struct vfs_node *cur_node   = NULL;
 
 next:;
@@ -147,8 +151,6 @@ next:;
         }
 
         if (last) {
-            if (create != NULL)
-                *create = false;
             return cur_node;
         }
 
@@ -174,11 +176,19 @@ next:;
     }
 
 epilogue:
-    if (create != NULL && *create) {
-        if (last)
+    if (create) {
+        if (last) {
             return vfs_new_node(cur_parent, elem);
-        else
-            *create = false;
+        } else {
+            if (create == CREATE_SHALLOW)
+                return NULL;
+            struct vfs_node *new_dir = vfs_new_node(cur_parent, elem);
+            new_dir->res = resource_create(sizeof(struct resource));
+            new_dir->res->st.st_dev  = cur_parent->backing_dev_id;
+            new_dir->res->st.st_mode = (0755 & ~S_IFMT) | S_IFDIR;
+            cur_parent = new_dir;
+            goto next;
+        }
     }
 
     // if (last)
@@ -202,7 +212,7 @@ bool vfs_mount(const char *source, const char *target, const char *fstype) {
     if (fs == NULL)
         return false;
 
-    struct vfs_node *tgt_node = path2node(target, NULL);
+    struct vfs_node *tgt_node = path2node(NULL, target, NO_CREATE);
     if (tgt_node == NULL)
         return false;
 
@@ -214,7 +224,7 @@ bool vfs_mount(const char *source, const char *target, const char *fstype) {
     dev_t backing_dev_id;
     struct resource *src_handle = NULL;
     if (fs->needs_backing_device) {
-        struct vfs_node *backing_dev_node = path2node(source, NULL);
+        struct vfs_node *backing_dev_node = path2node(NULL, source, NO_CREATE);
         if (backing_dev_node == NULL)
             return false;
         if (!S_ISCHR(backing_dev_node->res->st.st_mode)
@@ -244,7 +254,12 @@ bool vfs_mount(const char *source, const char *target, const char *fstype) {
 }
 
 struct vfs_node *vfs_new_node(struct vfs_node *parent, const char *name) {
-    struct vfs_node *new_node = alloc(sizeof(struct vfs_node));
+    struct vfs_node *new_node = path2node(parent, name, NO_CREATE);
+
+    if (new_node != NULL)
+        return NULL;
+
+    new_node = alloc(sizeof(struct vfs_node));
 
     new_node->next = parent->child;
     parent->child  = new_node;
@@ -258,11 +273,22 @@ struct vfs_node *vfs_new_node(struct vfs_node *parent, const char *name) {
     return new_node;
 }
 
+struct vfs_node *vfs_new_node_deep(struct vfs_node *parent, const char *name) {
+    struct vfs_node *new_node = path2node(parent, name, NO_CREATE);
+
+    if (new_node != NULL)
+        return NULL;
+
+    new_node = path2node(parent, name, CREATE_DEEP);
+
+    return new_node;
+}
+
 struct resource *vfs_open(const char *path, int oflags, mode_t mode) {
     SPINLOCK_ACQUIRE(vfs_lock);
 
     bool create = oflags & O_CREAT;
-    struct vfs_node *path_node = path2node(path, &create);
+    struct vfs_node *path_node = path2node(NULL, path, create ? CREATE_SHALLOW : NO_CREATE);
     if (path_node == NULL) {
         LOCK_RELEASE(vfs_lock);
         return NULL;
@@ -293,7 +319,7 @@ void vfs_dump_nodes(struct vfs_node *node, const char *parent) {
         print("%s - %s\n", parent, cur_node->name);
         if (cur_node->mount_gate != NULL && cur_node->mount_gate->child != NULL) {
             vfs_dump_nodes(cur_node->mount_gate->child, cur_node->name);
-        } else if (cur_node->child != NULL) {
+        } else if (cur_node->child != NULL && cur_node->mount_gate == NULL) {
             vfs_dump_nodes(cur_node->child, cur_node->name);
         }
         cur_node = cur_node->next;
@@ -303,7 +329,7 @@ void vfs_dump_nodes(struct vfs_node *node, const char *parent) {
 bool vfs_stat(const char *path, struct stat *st) {
     SPINLOCK_ACQUIRE(vfs_lock);
 
-    struct vfs_node *node = path2node(path, NULL);
+    struct vfs_node *node = path2node(NULL, path, NO_CREATE);
     if (node == NULL) {
         // errno = ENOENT;
         LOCK_RELEASE(vfs_lock);

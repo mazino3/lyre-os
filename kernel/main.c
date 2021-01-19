@@ -14,13 +14,19 @@
 #include <acpi/acpi.h>
 #include <fs/vfs.h>
 #include <fs/tmpfs.h>
+#include <fs/devtmpfs.h>
 #include <sched/sched.h>
 
 __attribute__((noreturn))
 static void main_thread(void *arg) {
     vfs_dump_nodes(NULL, "");
     vfs_install_fs(&tmpfs);
-    vfs_mount("", "/", "tmpfs");
+    vfs_install_fs(&devtmpfs);
+    vfs_mount("tmpfs", "/", "tmpfs");
+    vfs_new_node_deep(NULL, "/dev/idk");
+    vfs_dump_nodes(NULL, "");
+    vfs_mount("devtmpfs", "/dev", "devtmpfs");
+
     struct resource *h = vfs_open("/test.txt", O_RDWR | O_CREAT, 0644);
     if (h == NULL)
         print("a\n");

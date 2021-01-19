@@ -1,6 +1,6 @@
 #include <stddef.h>
 #include <fs/vfs.h>
-#include <fs/tmpfs.h>
+#include <fs/devtmpfs.h>
 #include <lib/alloc.h>
 #include <lib/builtins.h>
 #include <lib/resource.h>
@@ -12,17 +12,36 @@ struct tmpfs_resource {
     char  *data;
 };
 
-static struct vfs_node *tmpfs_mount(struct resource *device) {
-    (void)device;
+static struct vfs_node devfs_mount_gate = {
+    .name           = "/dev",
+    .res            = NULL,
+    .mount_data     = NULL,
+    .fs             = &devtmpfs,
+    .mount_gate     = NULL,
+    .parent         = NULL,
+    .child          = NULL,
+    .next           = NULL,
+    .backing_dev_id = 0
+};
 
-    struct vfs_node *mount_gate = alloc(sizeof(struct vfs_node));
+bool devtmpfs_add_device(struct resource *res, const char *name) {
+    struct vfs_node *new_node = vfs_new_node_deep(&devfs_mount_gate, name);
 
-    mount_gate->fs = &tmpfs;
+    if (new_node == NULL)
+        return false;
 
-    return mount_gate;
+    new_node->res = res;
+
+    return true;
 }
 
-static ssize_t tmpfs_read(struct resource *_this, void *buf, off_t off, size_t count) {
+static struct vfs_node *devtmpfs_mount(struct resource *device) {
+    (void)device;
+
+    return &devfs_mount_gate;
+}
+
+static ssize_t devtmpfs_read(struct resource *_this, void *buf, off_t off, size_t count) {
     struct tmpfs_resource *this = (void *)_this;
 
     if (!SPINLOCK_ACQUIRE(this->lock)) {
@@ -39,7 +58,7 @@ static ssize_t tmpfs_read(struct resource *_this, void *buf, off_t off, size_t c
     return count;
 }
 
-static ssize_t tmpfs_write(struct resource *_this, const void *buf, off_t off, size_t count) {
+static ssize_t devtmpfs_write(struct resource *_this, const void *buf, off_t off, size_t count) {
     struct tmpfs_resource *this = (void *)_this;
 
     if (!SPINLOCK_ACQUIRE(this->lock)) {
@@ -62,7 +81,7 @@ static ssize_t tmpfs_write(struct resource *_this, const void *buf, off_t off, s
     return count;
 }
 
-static int tmpfs_close(struct resource *_this) {
+static int devtmpfs_close(struct resource *_this) {
     struct tmpfs_resource *this = (void *)_this;
 
     if (!SPINLOCK_ACQUIRE(this->lock)) {
@@ -76,7 +95,7 @@ static int tmpfs_close(struct resource *_this) {
     return 0;
 }
 
-static struct resource *tmpfs_open(struct vfs_node *node, bool create, mode_t mode) {
+static struct resource *devtmpfs_open(struct vfs_node *node, bool create, mode_t mode) {
     if (!create)
         return NULL;
 
@@ -91,22 +110,22 @@ static struct resource *tmpfs_open(struct vfs_node *node, bool create, mode_t mo
     res->st.st_ino      = (uintptr_t)res->data;
     res->st.st_mode     = (mode & ~S_IFMT) | S_IFREG;
     res->st.st_nlink    = 1;
-    res->close          = tmpfs_close;
-    res->read           = tmpfs_read;
-    res->write          = tmpfs_write;
+    res->close          = devtmpfs_close;
+    res->read           = devtmpfs_read;
+    res->write          = devtmpfs_write;
 
     return (void *)res;
 }
 
-static struct vfs_node *tmpfs_populate(struct vfs_node *node) {
+static struct vfs_node *devtmpfs_populate(struct vfs_node *node) {
     (void)node;
     return NULL;
 }
 
-struct filesystem tmpfs = {
-    .name     = "tmpfs",
+struct filesystem devtmpfs = {
+    .name     = "devtmpfs",
     .needs_backing_device = false,
-    .mount    = tmpfs_mount,
-    .open     = tmpfs_open,
-    .populate = tmpfs_populate
+    .mount    = devtmpfs_mount,
+    .open     = devtmpfs_open,
+    .populate = devtmpfs_populate
 };

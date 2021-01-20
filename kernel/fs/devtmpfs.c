@@ -12,6 +12,8 @@ struct tmpfs_resource {
     char  *data;
 };
 
+static ino_t inode_counter = 1;
+
 static struct vfs_node devfs_mount_gate = {
     .name           = "/dev",
     .res            = NULL,
@@ -107,12 +109,26 @@ static struct resource *devtmpfs_open(struct vfs_node *node, bool create, mode_t
     res->st.st_size     = 0;
     res->st.st_blocks   = 0;
     res->st.st_blksize  = 512;
-    res->st.st_ino      = (uintptr_t)res->data;
+    res->st.st_ino      = inode_counter++;
     res->st.st_mode     = (mode & ~S_IFMT) | S_IFREG;
     res->st.st_nlink    = 1;
     res->close          = devtmpfs_close;
     res->read           = devtmpfs_read;
     res->write          = devtmpfs_write;
+
+    return (void *)res;
+}
+
+static struct resource *devtmpfs_mkdir(struct vfs_node *node, mode_t mode) {
+    struct resource *res = resource_create(sizeof(struct resource));
+
+    res->st.st_dev      = node->backing_dev_id;
+    res->st.st_size     = 0;
+    res->st.st_blocks   = 0;
+    res->st.st_blksize  = 512;
+    res->st.st_ino      = inode_counter++;
+    res->st.st_mode     = (mode & ~S_IFMT) | S_IFDIR;
+    res->st.st_nlink    = 1;
 
     return (void *)res;
 }
@@ -127,5 +143,6 @@ struct filesystem devtmpfs = {
     .needs_backing_device = false,
     .mount    = devtmpfs_mount,
     .open     = devtmpfs_open,
+    .mkdir    = devtmpfs_mkdir,
     .populate = devtmpfs_populate
 };

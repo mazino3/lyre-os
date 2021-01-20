@@ -14,6 +14,7 @@ struct filesystem {
     struct vfs_node *(*mount)(struct resource *device);
     struct vfs_node *(*populate)(struct vfs_node *node);
     struct resource *(*open)(struct vfs_node *node, bool new_node, mode_t mode);
+    struct resource *(*mkdir)(struct vfs_node *node, mode_t mode);
 };
 
 #define VFS_ROOT_INODE ((ino_t)0xffffffffffffffff)
@@ -37,6 +38,7 @@ void vfs_get_absolute_path(char *path_ptr, const char *path, const char *pwd);
 bool vfs_install_fs(struct filesystem *fs);
 bool vfs_mount(const char *source, const char *target, const char *fs);
 struct resource *vfs_open(const char *path, int oflags, mode_t mode);
+struct vfs_node *vfs_mkdir(struct vfs_node *parent, const char *name, mode_t mode, bool recurse);
 bool vfs_stat(const char *path, struct stat *st);
 
 #endif

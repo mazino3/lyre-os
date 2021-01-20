@@ -23,7 +23,8 @@ static void main_thread(void *arg) {
     vfs_install_fs(&tmpfs);
     vfs_install_fs(&devtmpfs);
     vfs_mount("tmpfs", "/", "tmpfs");
-    vfs_new_node_deep(NULL, "/dev/idk");
+    vfs_dump_nodes(NULL, "");
+    vfs_mkdir(NULL, "/dev", 0755, true);
     vfs_dump_nodes(NULL, "");
     vfs_mount("devtmpfs", "/dev", "devtmpfs");
 

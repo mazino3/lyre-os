@@ -58,7 +58,7 @@ fi
 
 # Install limine
 if ! [ -d limine ]; then
-    git clone https://github.com/limine-bootloader/limine.git --depth=1 --branch=v1.0
+    git clone https://github.com/limine-bootloader/limine.git --depth=1 --branch=v1.0-branch
     make -C limine
 fi
 limine/limine-install lyre.hdd

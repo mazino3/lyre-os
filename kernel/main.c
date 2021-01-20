@@ -18,7 +18,7 @@
 #include <sched/sched.h>
 
 __attribute__((noreturn))
-static void main_thread(void *arg) {
+static void main_thread(struct stivale2_struct *stivale2_struct) {
     vfs_dump_nodes(NULL, "");
     vfs_install_fs(&tmpfs);
     vfs_install_fs(&devtmpfs);
@@ -40,6 +40,12 @@ static void main_thread(void *arg) {
     char buf[20] = {0};
     h1->read(h1, buf, 0, 12);
     print(buf);
+
+    struct stivale2_struct_tag_modules *modules_tag =
+        stivale2_get_tag(stivale2_struct, STIVALE2_STRUCT_TAG_MODULES_ID);
+
+    initramfs_init(modules_tag);
+    vfs_dump_nodes(NULL, "");
 
     print("CPU %u\n", this_cpu->cpu_number);
 
@@ -73,7 +79,7 @@ void main(struct stivale2_struct *stivale2_struct) {
 
     smp_init(smp_tag);
 
-    sched_new_thread(NULL, false, main_thread, (void*)0xdeadbeef, NULL, NULL, NULL);
+    sched_new_thread(NULL, false, main_thread, stivale2_struct, NULL, NULL, NULL);
 
     asm ("sti");
     for (;;) asm ("hlt");

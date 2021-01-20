@@ -184,11 +184,17 @@ packages:
         environ:
           DESTDIR: '@THIS_COLLECT_DIR@'
 
-  - name: dummy
-    from_source: mlibc
+  - name: hello
+    source:
+      subdir: 'ports'
+      url: 'https://github.com/lowlevelmemes/hello/archive/1.2a.tar.gz'
+      format: 'tar.gz'
+      extract_path: 'hello-1.2a'
+      patch-path-strip: 1
     tools_required:
-      - tool: host-gcc
-    configure:
-      - args: ['true']
+      - host-gcc
     build:
-      - args: ['true']
+      - args: ['make', 'CC=x86_64-lyre-gcc', '-j@PARALLELISM@']
+        workdir: '@THIS_SOURCE_DIR@'
+      - args: ['make', 'PREFIX=/usr', 'DESTDIR=@THIS_COLLECT_DIR@', 'install']
+        workdir: '@THIS_SOURCE_DIR@'

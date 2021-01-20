@@ -70,11 +70,6 @@ bool initramfs_init(struct stivale2_struct_tag_modules *modules_tag) {
         if (strncmp(h->signature, "ustar", 5) != 0)
             break;
 
-        print("filename:    %s\n", h->name);
-        print("prefix:      %s\n", h->prefix);
-        print("signature:   %s\n", h->signature);
-        print("size:        %s\n", h->size);
-
         uintptr_t size = octal_to_int(h->size);
 
         switch (h->type) {
@@ -99,4 +94,6 @@ bool initramfs_init(struct stivale2_struct_tag_modules *modules_tag) {
     }
 
     print("initramfs: Loaded into VFS\n");
+
+    return true;
 }

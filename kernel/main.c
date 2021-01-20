@@ -16,6 +16,7 @@
 #include <fs/tmpfs.h>
 #include <fs/devtmpfs.h>
 #include <sched/sched.h>
+#include <dev/initramfs.h>
 
 __attribute__((noreturn))
 static void main_thread(struct stivale2_struct *stivale2_struct) {
@@ -28,24 +29,10 @@ static void main_thread(struct stivale2_struct *stivale2_struct) {
     vfs_dump_nodes(NULL, "");
     vfs_mount("devtmpfs", "/dev", "devtmpfs");
 
-    struct resource *h = vfs_open("/test.txt", O_RDWR | O_CREAT, 0644);
-    if (h == NULL)
-        print("a\n");
-    vfs_dump_nodes(NULL, "");
-    h->write(h, "hello world\n", 0, 12);
-
-    struct resource *h1 = vfs_open("/test.txt", O_RDWR, 0644);
-    if (h1 == NULL)
-        print("b\n");
-    char buf[20] = {0};
-    h1->read(h1, buf, 0, 12);
-    print(buf);
-
     struct stivale2_struct_tag_modules *modules_tag =
         stivale2_get_tag(stivale2_struct, STIVALE2_STRUCT_TAG_MODULES_ID);
 
     initramfs_init(modules_tag);
-    vfs_dump_nodes(NULL, "");
 
     print("CPU %u\n", this_cpu->cpu_number);
 

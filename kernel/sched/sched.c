@@ -8,6 +8,7 @@
 #include <mm/vmm.h>
 #include <sys/idt.h>
 #include <sys/apic.h>
+#include <lib/print.h>
 
 #define THREAD_STACK_SIZE ((size_t)8192)
 #define THREAD_STACK_TOP  ((uintptr_t)0x70000000000)

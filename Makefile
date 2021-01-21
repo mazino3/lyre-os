@@ -12,7 +12,7 @@ clean:
 	rm -rf lyre.hdd
 
 distclean: clean
-	rm -rf build ports limine mlibc*
+	rm -rf build ports limine mlibc* initramfs.tar.gz
 
 QEMU_FLAGS :=       \
     $(QEMU_FLAGS)   \

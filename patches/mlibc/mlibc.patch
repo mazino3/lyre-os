@@ -69,10 +69,10 @@ index 0000000..ee7a794
 +
 diff --git a/mlibc-workdir/sysdeps/lyre/generic/generic.cpp b/mlibc-workdir/sysdeps/lyre/generic/generic.cpp
 new file mode 100644
-index 0000000..ddb6583
+index 0000000..88cc3b2
 --- /dev/null
 +++ b/mlibc-workdir/sysdeps/lyre/generic/generic.cpp
-@@ -0,0 +1,31 @@
+@@ -0,0 +1,47 @@
 +#include <bits/ensure.h>
 +#include <mlibc/debug.hpp>
 +#include <mlibc/all-sysdeps.hpp>
@@ -83,10 +83,26 @@ index 0000000..ddb6583
 +
 +#define STUB_ONLY { __ensure(!"STUB_ONLY function was called"); __builtin_unreachable(); }
 +
++#define SYSCALL1(NUM, ARG0)                \
++    asm volatile ("syscall"                \
++                  : "=a"(ret), "=d"(errno) \
++                  : "a"(NUM), "D"(ARG0)    \
++                  : "rcx", "r11");
++
++#define SYSCALL_DEBUGLOG 0
++
 +namespace mlibc {
 +
-+void sys_libc_log(const char *message) STUB_ONLY
-+void sys_libc_panic() STUB_ONLY
++void sys_libc_log(const char *message) {
++    uint64_t ret, errno;
++    SYSCALL1(SYSCALL_DEBUGLOG, message);
++}
++
++void sys_libc_panic() {
++    sys_libc_log("MLIBC PANIC\n");
++    for (;;);
++}
++
 +void sys_exit(int status) STUB_ONLY
 +int sys_tcb_set(void *pointer) STUB_ONLY
 +int sys_futex_wait(int *pointer, int expected) STUB_ONLY

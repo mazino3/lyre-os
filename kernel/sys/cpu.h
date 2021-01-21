@@ -30,6 +30,8 @@ struct thread;
 struct cpu_local {
     uint64_t cpu_number;
     uint64_t kernel_stack;
+    uint64_t user_stack;
+    int64_t errno;
     struct cpu_tss tss;
     uint32_t lapic_id;
     uint64_t tsc_frequency;

@@ -12,7 +12,8 @@ bool elf_load(struct pagemap *pagemap, struct resource *file, uintptr_t base,
               struct auxval_t *auxval, char **ld_path) {
     bool ok = false;
     struct elf_phdr_t *phdr = NULL;
-    *ld_path = NULL;
+    if (ld_path != NULL)
+        *ld_path = NULL;
     ssize_t ret;
 
     struct elf_hdr_t hdr;
@@ -45,15 +46,18 @@ bool elf_load(struct pagemap *pagemap, struct resource *file, uintptr_t base,
     for (size_t i = 0; i < hdr.ph_num; i++) {
         switch (phdr[i].p_type) {
             case PT_INTERP: {
+                if (ld_path == NULL)
+                    break;
+
                 *ld_path = alloc(phdr[i].p_filesz + 1);
                 if (*ld_path == NULL)
                     goto out;
 
-                ret = file->read(file, ld_path, phdr[i].p_offset, phdr[i].p_filesz);
+                ret = file->read(file, *ld_path, phdr[i].p_offset, phdr[i].p_filesz);
                 if (ret != phdr[i].p_filesz)
                     goto out;
 
-                ld_path[phdr[i].p_filesz] = 0;
+                (*ld_path)[phdr[i].p_filesz] = 0;
 
                 break;
             }
@@ -97,7 +101,7 @@ bool elf_load(struct pagemap *pagemap, struct resource *file, uintptr_t base,
 out:
     if (phdr != NULL)
         free(phdr);
-    if (*ld_path != NULL && ok == false)
+    if (ld_path != NULL && *ld_path != NULL && ok == false)
         free(*ld_path);
     return ok;
 }

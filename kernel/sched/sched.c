@@ -9,6 +9,7 @@
 #include <sys/idt.h>
 #include <sys/apic.h>
 #include <lib/print.h>
+#include <fs/vfs.h>
 
 #define THREAD_STACK_SIZE ((size_t)8192)
 #define THREAD_STACK_TOP  ((uintptr_t)0x70000000000)
@@ -23,12 +24,63 @@ DYNARRAY_STATIC(struct thread *, threads);
 DYNARRAY_STATIC(struct thread *, running_queue);
 DYNARRAY_STATIC(struct thread *, idle_queue);
 
-struct process *sched_new_process() {
+struct process *sched_start_program(const char *path,
+                                    const char **argv,
+                                    const char **envp) {
+    struct resource *file = vfs_open(path, O_RDONLY, 0);
+    if (file == NULL)
+        return NULL;
+
+    struct pagemap *new_pagemap = vmm_new_pagemap(PAGING_4LV);
+
+    struct process *new_process = sched_new_process(new_pagemap);
+
+    struct auxval_t auxval;
+    char *ld_path;
+
+    if (!elf_load(new_pagemap, file, 0, &auxval, &ld_path))
+        return NULL;
+
+    file->close(file);
+
+    void *entry_point;
+
+    if (ld_path == NULL) {
+        entry_point = (void *)auxval.at_entry;
+    } else {
+        struct resource *ld = vfs_open(ld_path, O_RDONLY, 0);
+
+        struct auxval_t ld_auxval;
+        if (!elf_load(new_pagemap, ld, 0x40000000, &ld_auxval, NULL))
+            return NULL;
+
+        ld->close(ld);
+
+        free(ld_path);
+
+        entry_point = (void *)ld_auxval.at_entry;
+    }
+
+    sched_new_thread(new_process, true, entry_point, NULL,
+                     argv, envp, &auxval);
+
+    return new_process;
+}
+
+struct process *sched_new_process(struct pagemap *pagemap) {
     struct process *new_process = alloc(sizeof(struct process));
     if (new_process == NULL)
         return NULL;
 
+    new_process->pagemap = pagemap;
     new_process->thread_stack_top = THREAD_STACK_TOP;
+
+    SPINLOCK_ACQUIRE(sched_lock);
+
+    pid_t pid = DYNARRAY_INSERT(processes, new_process);
+    new_process->pid = pid;
+
+    LOCK_RELEASE(sched_lock);
 
     return new_process;
 }
@@ -48,21 +100,19 @@ struct thread *sched_new_thread(struct process *proc,
 
     size_t *stack = pmm_allocz(THREAD_STACK_SIZE / PAGE_SIZE);
 
-    uintptr_t stack_vma;
+    uintptr_t stack_bottom_vma;
     if (proc != NULL) {
         // User thread
-        new_thread->ctx.cs = 0x20;
-        new_thread->ctx.ss = 0x18;
+        new_thread->ctx.cs = 0x23;
+        new_thread->ctx.ss = 0x1b;
 
         proc->thread_stack_top -= THREAD_STACK_SIZE;
-        stack_vma = proc->thread_stack_top;
+        stack_bottom_vma = proc->thread_stack_top;
         proc->thread_stack_top -= PAGE_SIZE;
 
         for (size_t i = 0; i < THREAD_STACK_SIZE; i += PAGE_SIZE) {
-            vmm_map_page(proc == NULL ? kernel_pagemap : proc->pagemap,
-                         stack_vma + i,
-                         (uintptr_t)stack + i,
-                         proc == NULL ? 0x03 : 0x07);
+            vmm_map_page(proc->pagemap, stack_bottom_vma + i,
+                         (uintptr_t)stack + i, 0x07);
         }
 
         void *kernel_stack = pmm_allocz(THREAD_STACK_SIZE / PAGE_SIZE);
@@ -73,15 +123,65 @@ struct thread *sched_new_thread(struct process *proc,
         new_thread->ctx.cs = 0x08;
         new_thread->ctx.ss = 0x10;
 
-        stack_vma = (uintptr_t)stack + MEM_PHYS_OFFSET;
+        stack_bottom_vma = (uintptr_t)stack + MEM_PHYS_OFFSET;
     }
 
-    new_thread->ctx.rsp = stack_vma + THREAD_STACK_SIZE;
+    new_thread->ctx.rsp = stack_bottom_vma + THREAD_STACK_SIZE;
 
     stack = (void *)stack + THREAD_STACK_SIZE + MEM_PHYS_OFFSET;
 
     if (want_elf) {
-        // TODO
+        uintptr_t stack_top = (uintptr_t)stack;
+
+        /* Push all strings onto the stack. */
+        size_t nenv = 0;
+        for (const char **elem = envp; *elem; elem++) {
+            stack = (void*)stack - (strlen(*elem) + 1);
+            strcpy(stack, *elem);
+            nenv++;
+        }
+        size_t nargs = 0;
+        for (const char **elem = argv; *elem; elem++) {
+            stack = (void*)stack - (strlen(*elem) + 1);
+            strcpy(stack, *elem);
+            nargs++;
+        }
+
+        /* Align strp to 16-byte so that the following calculation becomes easier. */
+        stack = (void*)stack - ((uintptr_t)stack & 0xf);
+
+        /* Make sure the *final* stack pointer is 16-byte aligned.
+            - The auxv takes a multiple of 16-bytes; ignore that.
+            - There are 2 markers that each take 8-byte; ignore that, too.
+            - Then, there is argc and (nargs + nenv)-many pointers to args/environ.
+              Those are what we *really* care about. */
+        if ((nargs + nenv + 1) & 1)
+            stack--;
+
+        *(--stack) = 0; *(--stack) = 0; /* Zero auxiliary vector entry */
+        stack -= 2; *stack = AT_ENTRY;  *(stack + 1) = auxval->at_entry;
+        stack -= 2; *stack = AT_PHDR;   *(stack + 1) = auxval->at_phdr;
+        stack -= 2; *stack = AT_PHENT;  *(stack + 1) = auxval->at_phent;
+        stack -= 2; *stack = AT_PHNUM;  *(stack + 1) = auxval->at_phnum;
+
+        uintptr_t sa = stack_top;
+
+        *(--stack) = 0; /* Marker for end of environ */
+        stack -= nenv;
+        for (size_t i = 0; i < nenv; i++) {
+            sa -= strlen(envp[i]) + 1;
+            stack[i] = sa;
+        }
+
+        *(--stack) = 0; /* Marker for end of argv */
+        stack -= nargs;
+        for (size_t i = 0; i < nargs; i++) {
+            sa -= strlen(argv[i]) + 1;
+            stack[i] = sa;
+        }
+        *(--stack) = nargs; /* argc */
+
+        new_thread->ctx.rsp -= stack_top - (uintptr_t)stack;
     } else {
         new_thread->ctx.rdi = (uint64_t)arg;
     }
@@ -98,6 +198,10 @@ struct thread *sched_new_thread(struct process *proc,
     new_thread->tid = thread_id;
 
     DYNARRAY_PUSHBACK(running_queue, new_thread);
+
+    if (proc != NULL) {
+        DYNARRAY_INSERT(proc->threads, new_thread);
+    }
 
     LOCK_RELEASE(sched_lock);
 
@@ -172,6 +276,11 @@ void reschedule(struct cpu_gpr_context *ctx) {
     if (current_thread->ctx.cs & 0x03) {
         swapgs();
     }
+
+    if (current_thread->process != NULL)
+        vmm_switch_pagemap(current_thread->process->pagemap);
+    else
+        vmm_switch_pagemap(kernel_pagemap);
 
     sched_spinup(&current_thread->ctx);
 }

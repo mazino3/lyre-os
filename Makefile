@@ -23,7 +23,6 @@ QEMU_FLAGS :=       \
     -no-reboot      \
     -no-shutdown    \
     -hda lyre.hdd   \
-    -smp sockets=1,cores=4,threads=1 \
     -enable-kvm -cpu host,+invtsc
 
 run:

@@ -41,6 +41,10 @@ static void main_thread(struct stivale2_struct *stivale2_struct) {
 
     print("CPU %u\n", this_cpu->cpu_number);
 
+    const char *argv[] = { "/usr/bin/hello", NULL };
+    const char *envp[] = { NULL };
+    sched_start_program("/usr/bin/hello", argv, envp);
+
     for (;;) asm ("hlt");
 }
 

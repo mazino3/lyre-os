@@ -7,6 +7,11 @@
 #include <mm/vmm.h>
 #include <lib/resource.h>
 
+#define AT_ENTRY 10
+#define AT_PHDR 20
+#define AT_PHENT 21
+#define AT_PHNUM 22
+
 struct auxval_t {
     uintptr_t at_entry;
     uintptr_t at_phdr;

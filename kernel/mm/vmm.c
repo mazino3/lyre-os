@@ -58,8 +58,12 @@ struct pagemap *vmm_new_pagemap(enum paging_type paging_type) {
     pagemap->paging_type = paging_type;
     pagemap->top_level   = pmm_allocz(1);
     if (kernel_pagemap != NULL) {
+        uintptr_t *top_level =
+            (void*)pagemap->top_level + MEM_PHYS_OFFSET;
+        uintptr_t *kernel_top_level =
+            (void*)kernel_pagemap->top_level + MEM_PHYS_OFFSET;
         for (size_t i = 256; i < 512; i++)
-            pagemap->top_level[i] = kernel_pagemap->top_level[i];
+            top_level[i] = kernel_top_level[i];
     }
     return pagemap;
 }
@@ -80,7 +84,7 @@ static uintptr_t *get_next_level(uintptr_t *current_level, size_t entry) {
         current_level[entry] = ret | 0b111;
     }
 
-    return (uintptr_t *)ret;
+    return (void *)ret + MEM_PHYS_OFFSET;
 }
 
 bool vmm_map_page(struct pagemap *pagemap, uintptr_t virt_addr, uintptr_t phys_addr,
@@ -99,10 +103,10 @@ bool vmm_map_page(struct pagemap *pagemap, uintptr_t virt_addr, uintptr_t phys_a
     // Paging levels
     switch (pagemap->paging_type) {
         case PAGING_5LV:
-            pml5 = pagemap->top_level;
+            pml5 = (void*)pagemap->top_level + MEM_PHYS_OFFSET;
             goto level5;
         case PAGING_4LV:
-            pml4 = pagemap->top_level;
+            pml4 = (void*)pagemap->top_level + MEM_PHYS_OFFSET;
             goto level4;
         default:
             for (;;);

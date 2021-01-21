@@ -8,6 +8,7 @@ int_event: resq 256
 %macro raise_int 1
 align 16
 raise_int_%1:
+jmp $
     lock inc dword [int_event+%1*8]
     iretq
 %endmacro

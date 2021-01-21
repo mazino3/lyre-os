@@ -32,6 +32,12 @@ struct process {
 
 void sched_init(void);
 
+struct process *sched_start_program(const char *path,
+                                    const char **argv,
+                                    const char **envp);
+
+struct process *sched_new_process(struct pagemap *pagemap);
+
 struct thread *sched_new_thread(struct process *proc,
                                 bool want_elf,
                                 void *addr,

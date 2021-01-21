@@ -43,6 +43,8 @@ align 16
 syscall_table:
     extern syscall_debug_log
     dq syscall_debug_log
+    extern syscall_mmap
+    dq syscall_mmap
   .end:
 
 section .text
@@ -81,6 +83,8 @@ syscall_entry:
     push rcx
     push rbx
     push rax
+
+    mov rdi, rsp
 
     call [syscall_table + rax * 8]
 

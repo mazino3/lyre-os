@@ -74,6 +74,7 @@ struct process *sched_new_process(struct pagemap *pagemap) {
 
     new_process->pagemap = pagemap;
     new_process->thread_stack_top = THREAD_STACK_TOP;
+    new_process->mmap_anon_non_fixed_base = MMAP_ANON_NON_FIXED_BASE;
 
     SPINLOCK_ACQUIRE(sched_lock);
 

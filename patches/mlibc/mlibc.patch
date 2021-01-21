@@ -1,13 +1,21 @@
 diff --git a/mlibc-orig/meson.build b/mlibc-workdir/meson.build
-index b781895..43bc8ef 100644
+index b781895..8ebcb71 100644
 --- a/mlibc-orig/meson.build
 +++ b/mlibc-workdir/meson.build
-@@ -89,6 +89,11 @@ elif host_machine.system() == 'qword'
+@@ -44,7 +44,7 @@ if not headers_only
+ 	c_compiler = meson.get_compiler('c')
+ 
+ 	add_project_arguments('-nostdinc', '-fno-builtin', language: ['c', 'cpp'])
+-	add_project_arguments('-std=c++17', language: 'cpp')
++	add_project_arguments('-std=gnu++17', language: 'cpp')
+ 	add_project_arguments('-fno-rtti', '-fno-exceptions', language: 'cpp')
+ 	add_project_link_arguments('-nostdlib', language: ['c', 'cpp'])
+ 
+@@ -89,6 +89,10 @@ elif host_machine.system() == 'qword'
  	rtdl_include_dirs += include_directories('sysdeps/qword/include')
  	libc_include_dirs += include_directories('sysdeps/qword/include')
  	subdir('sysdeps/qword')
 +elif host_machine.system() == 'lyre'
-+	disable_linux_option = true
 +	rtdl_include_dirs += include_directories('sysdeps/lyre/include')
 +	libc_include_dirs += include_directories('sysdeps/lyre/include')
 +	subdir('sysdeps/lyre')
@@ -69,10 +77,10 @@ index 0000000..ee7a794
 +
 diff --git a/mlibc-workdir/sysdeps/lyre/generic/generic.cpp b/mlibc-workdir/sysdeps/lyre/generic/generic.cpp
 new file mode 100644
-index 0000000..88cc3b2
+index 0000000..367fcb1
 --- /dev/null
 +++ b/mlibc-workdir/sysdeps/lyre/generic/generic.cpp
-@@ -0,0 +1,47 @@
+@@ -0,0 +1,76 @@
 +#include <bits/ensure.h>
 +#include <mlibc/debug.hpp>
 +#include <mlibc/all-sysdeps.hpp>
@@ -83,18 +91,31 @@ index 0000000..88cc3b2
 +
 +#define STUB_ONLY { __ensure(!"STUB_ONLY function was called"); __builtin_unreachable(); }
 +
-+#define SYSCALL1(NUM, ARG0)                \
++#define SYSCALL1(NUM, ARG0) ({             \
 +    asm volatile ("syscall"                \
 +                  : "=a"(ret), "=d"(errno) \
 +                  : "a"(NUM), "D"(ARG0)    \
-+                  : "rcx", "r11");
++                  : "rcx", "r11");         \
++})
++
++#define SYSCALL6(NUM, ARG0, ARG1, ARG2, ARG3, ARG4, ARG5) ({   \
++    register typeof(ARG3) arg3 asm("r10") = ARG3;              \
++    register typeof(ARG4) arg4 asm("r8")  = ARG4;              \
++    register typeof(ARG5) arg5 asm("r9")  = ARG5;              \
++    asm volatile ("syscall"                                    \
++                  : "=a"(ret), "=d"(errno)                     \
++                  : "a"(NUM), "D"(ARG0), "S"(ARG1), "d"(ARG2), \
++                    "r"(arg3), "r"(arg4), "r"(arg5)            \
++                  : "rcx", "r11");                             \
++})
 +
 +#define SYSCALL_DEBUGLOG 0
++#define SYSCALL_MMAP     1
 +
 +namespace mlibc {
 +
 +void sys_libc_log(const char *message) {
-+    uint64_t ret, errno;
++    int64_t ret, errno;
 +    SYSCALL1(SYSCALL_DEBUGLOG, message);
 +}
 +
@@ -112,10 +133,26 @@ index 0000000..88cc3b2
 +int sys_write(int fd, const void *buf, size_t count, ssize_t *bytes_written) STUB_ONLY
 +int sys_close(int fd) STUB_ONLY
 +int sys_open(const char *path, int flags, int *fd) STUB_ONLY
++
 +int sys_vm_map(void *hint, size_t size, int prot, int flags,
-+		int fd, off_t offset, void **window) STUB_ONLY
++               int fd, off_t offset, void **window) {
++    void *ret;
++    int64_t errno;
++    SYSCALL6(SYSCALL_MMAP, hint, size, prot, flags, fd, offset);
++    if (ret == NULL)
++        return errno;
++    *window = ret;
++    return 0;
++}
++
 +int sys_vm_unmap(void *pointer, size_t size) STUB_ONLY
-+int sys_anon_allocate(size_t size, void **pointer) STUB_ONLY
++
++int sys_anon_allocate(size_t size, void **pointer) {
++    int errno = sys_vm_map(NULL, size, PROT_EXEC | PROT_READ | PROT_WRITE,
++                           MAP_ANONYMOUS, -1, 0, pointer);
++    return errno;
++}
++
 +int sys_anon_free(void *pointer, size_t size) STUB_ONLY
 +int sys_clock_get(int clock, time_t *secs, long *nanos) STUB_ONLY
 +
@@ -223,6 +260,14 @@ index 0000000..3fd26a7
 +++ b/mlibc-workdir/sysdeps/lyre/include/abi-bits/pid_t.h
 @@ -0,0 +1 @@
 +../../../../abis/mlibc/pid_t.h
+\ No newline at end of file
+diff --git a/mlibc-workdir/sysdeps/lyre/include/abi-bits/reboot.h b/mlibc-workdir/sysdeps/lyre/include/abi-bits/reboot.h
+new file mode 120000
+index 0000000..ecc3ddb
+--- /dev/null
++++ b/mlibc-workdir/sysdeps/lyre/include/abi-bits/reboot.h
+@@ -0,0 +1 @@
++../../../../abis/linux/x86_64/reboot.h
 \ No newline at end of file
 diff --git a/mlibc-workdir/sysdeps/lyre/include/abi-bits/resource.h b/mlibc-workdir/sysdeps/lyre/include/abi-bits/resource.h
 new file mode 120000

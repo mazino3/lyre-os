@@ -5,7 +5,10 @@
 #include <mm/pmm.h>
 #include <lib/lock.h>
 #include <lib/dynarray.h>
+#include <lib/print.h>
 #include <stivale/stivale2.h>
+#include <sys/cpu.h>
+#include <sched/sched.h>
 
 struct mmap_range {
     uintptr_t base;
@@ -20,7 +23,7 @@ struct pagemap {
     lock_t lock;
     enum paging_type paging_type;
     uintptr_t *top_level;
-    //DYNARRAY_NEW(struct mmap_range *, mmap_ranges);
+    DYNARRAY_STRUCT(struct mmap_range *) mmap_ranges;
 };
 
 struct pagemap *kernel_pagemap = NULL;
@@ -156,12 +159,13 @@ static struct addr2range_hit addr2range(struct pagemap *pm, uintptr_t addr) {
     }
     return NULL;
 }
+*/
 
 void *mmap(struct pagemap *pm, void *addr, size_t length, int prot, int flags,
            struct resource *res, off_t offset) {
     print("mmap(pm: %X, addr: %X, len: %X,\n"
           "     prot:  %s%s%s%s,\n"
-          "     flags: %s%s%s%s);\n"
+          "     flags: %s%s%s%s);\n",
           pm, addr, length,
           prot & PROT_READ  ? "PROT_READ ":"",
           prot & PROT_WRITE ? "PROT_WRITE ":"",
@@ -172,6 +176,34 @@ void *mmap(struct pagemap *pm, void *addr, size_t length, int prot, int flags,
           flags & MAP_FIXED     ? "MAP_FIXED ":"",
           flags & MAP_ANONYMOUS ? "MAP_ANONYMOUS ":"");
 
+    if (length % PAGE_SIZE) {
+        print("mmap: length is not a multiple of PAGE_SIZE\n");
+        return NULL;
+    }
+
+    struct process *process = this_cpu->current_thread->process;
+
+    if (flags & MAP_ANONYMOUS) {
+        uintptr_t base;
+        if (flags & MAP_FIXED) {
+            base = (uintptr_t)addr;
+        } else {
+            base = process->mmap_anon_non_fixed_base;
+            process->mmap_anon_non_fixed_base += length + PAGE_SIZE;
+        }
+
+        for (uintptr_t i = 0; i < length; i += PAGE_SIZE) {
+            void *page = pmm_alloc(1);
+            vmm_map_page(process->pagemap, base + i, (uintptr_t)page,
+                         PTE_PRESENT | PTE_USER |
+                         (prot & PROT_WRITE ? PTE_WRITABLE : 0));
+        }
+
+        return (void *)base;
+    }
+
+
+/*
     if ((uintptr_t)addr & PAGE_SIZE - 1) {
         if (flags & MAP_FIXED) {
             // errno = EINVAL;
@@ -183,7 +215,18 @@ void *mmap(struct pagemap *pm, void *addr, size_t length, int prot, int flags,
     }
 
     struct addr2range_hit hit = addr2range(pm, );
-
-
-}
 */
+    return NULL;
+}
+
+void *syscall_mmap(struct cpu_gpr_context *ctx) {
+    void  *addr   = (void *) ctx->rdi;
+    size_t length = (size_t) ctx->rsi;
+    int    prot   = (int)    ctx->rdx;
+    int    flags  = (int)    ctx->r10;
+    int    fd     = (int)    ctx->r8;
+    off_t  offset = (off_t)  ctx->r9;
+
+    return mmap(this_cpu->current_thread->process->pagemap,
+                addr, length, prot, flags, NULL, offset);
+}

@@ -28,6 +28,7 @@ struct process {
     struct pagemap *pagemap;
     DYNARRAY_STRUCT(struct thread *) threads;
     uintptr_t thread_stack_top;
+    uintptr_t mmap_anon_non_fixed_base;
 };
 
 void sched_init(void);

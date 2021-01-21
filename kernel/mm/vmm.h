@@ -12,6 +12,12 @@
 #define MEM_PHYS_OFFSET ((uintptr_t)0xffff800000000000)
 #define KERNEL_BASE ((uintptr_t)0xffffffff80000000)
 
+#define MMAP_ANON_NON_FIXED_BASE ((uintptr_t)0x71000000000)
+
+#define PTE_PRESENT  (1 << 0)
+#define PTE_WRITABLE (1 << 1)
+#define PTE_USER     (1 << 2)
+
 #define PROT_NONE  0x00
 #define PROT_READ  0x01
 #define PROT_WRITE 0x02

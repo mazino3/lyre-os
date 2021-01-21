@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/cpu.h>
+#include <sys/apic.h>
 #include <lib/print.h>
 #include <sys/hpet.h>
 #include <stivale/stivale2.h>

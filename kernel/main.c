@@ -16,7 +16,7 @@
 #include <fs/tmpfs.h>
 #include <fs/devtmpfs.h>
 #include <sched/sched.h>
-#include <dev/initramfs.h>
+#include <misc/initramfs.h>
 
 __attribute__((noreturn))
 static void main_thread(struct stivale2_struct *stivale2_struct) {
@@ -33,6 +33,11 @@ static void main_thread(struct stivale2_struct *stivale2_struct) {
         stivale2_get_tag(stivale2_struct, STIVALE2_STRUCT_TAG_MODULES_ID);
 
     initramfs_init(modules_tag);
+
+    struct stivale2_struct_tag_memmap *memmap_tag =
+        stivale2_get_tag(stivale2_struct, STIVALE2_STRUCT_TAG_MEMMAP_ID);
+
+    pmm_reclaim_memory((void *)memmap_tag->memmap, memmap_tag->entries);
 
     print("CPU %u\n", this_cpu->cpu_number);
 

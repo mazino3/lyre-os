@@ -72,7 +72,7 @@ install -m 644 /etc/localtime "$BUILD_DIR"/system-root/etc/
 install -d "$BUILD_DIR"/system-root/lib
 install "$BUILD_DIR"/system-root/usr/lib/ld.so "$BUILD_DIR"/system-root/lib/
 
-( cd "$BUILD_DIR"/system-root && tar -zcvf ../../initramfs.tar.gz * )
+( cd "$BUILD_DIR"/system-root && tar -zcf ../../initramfs.tar.gz * )
 
 echfs-utils -m -p0 lyre.hdd import root/limine.cfg limine.cfg
 echfs-utils -m -p0 lyre.hdd import "$LYRE_DIR"/lyre.elf lyre.elf

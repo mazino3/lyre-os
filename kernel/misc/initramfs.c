@@ -1,6 +1,6 @@
 #include <stdint.h>
 #include <stddef.h>
-#include <dev/initramfs.h>
+#include <misc/initramfs.h>
 #include <dev/dev.h>
 #include <stivale/stivale2.h>
 #include <mm/vmm.h>
@@ -93,7 +93,13 @@ bool initramfs_init(struct stivale2_struct_tag_modules *modules_tag) {
             break;
     }
 
-    print("initramfs: Loaded into VFS\n");
+    print("initramfs: Imported into VFS\n");
+
+    pmm_free(initramfs_addr - MEM_PHYS_OFFSET,
+             DIV_ROUNDUP(initramfs_size, PAGE_SIZE));
+
+    print("initramfs: Reclaimed %U pages of memory\n",
+          DIV_ROUNDUP(initramfs_size, PAGE_SIZE));
 
     return true;
 }

@@ -13,10 +13,24 @@ static uintptr_t highest_page = 0;
 
 static lock_t pmm_lock;
 
+void pmm_reclaim_memory(struct stivale2_mmap_entry *memmap, size_t memmap_entries) {
+    for (size_t i = 0; i < memmap_entries; i++) {
+        if (memmap[i].type != STIVALE2_MMAP_BOOTLOADER_RECLAIMABLE)
+            continue;
+
+        pmm_free(memmap[i].base, memmap[i].length / PAGE_SIZE);
+
+        print("pmm: Reclaimed %U pages at %X\n", memmap[i].length / PAGE_SIZE,
+                                                 memmap[i].base);
+    }
+}
+
 void pmm_init(struct stivale2_mmap_entry *memmap, size_t memmap_entries) {
     // First, calculate how big the bitmap needs to be.
     for (size_t i = 0; i < memmap_entries; i++) {
-        if (memmap[i].type != STIVALE2_MMAP_USABLE)
+        if (memmap[i].type != STIVALE2_MMAP_USABLE
+         && memmap[i].type != STIVALE2_MMAP_BOOTLOADER_RECLAIMABLE
+         && memmap[i].type != STIVALE2_MMAP_KERNEL_AND_MODULES)
             continue;
 
         uintptr_t top = memmap[i].base + memmap[i].length;

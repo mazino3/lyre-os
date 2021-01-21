@@ -77,10 +77,10 @@ index 0000000..ee7a794
 +
 diff --git a/mlibc-workdir/sysdeps/lyre/generic/generic.cpp b/mlibc-workdir/sysdeps/lyre/generic/generic.cpp
 new file mode 100644
-index 0000000..367fcb1
+index 0000000..cb0332b
 --- /dev/null
 +++ b/mlibc-workdir/sysdeps/lyre/generic/generic.cpp
-@@ -0,0 +1,76 @@
+@@ -0,0 +1,103 @@
 +#include <bits/ensure.h>
 +#include <mlibc/debug.hpp>
 +#include <mlibc/all-sysdeps.hpp>
@@ -98,6 +98,13 @@ index 0000000..367fcb1
 +                  : "rcx", "r11");         \
 +})
 +
++#define SYSCALL3(NUM, ARG0, ARG1, ARG2) ({                    \
++    asm volatile ("syscall"                                   \
++                  : "=a"(ret), "=d"(errno)                    \
++                  : "a"(NUM), "D"(ARG0), "S"(ARG1), "d"(ARG2) \
++                  : "rcx", "r11");                            \
++})
++
 +#define SYSCALL6(NUM, ARG0, ARG1, ARG2, ARG3, ARG4, ARG5) ({   \
 +    register typeof(ARG3) arg3 asm("r10") = ARG3;              \
 +    register typeof(ARG4) arg4 asm("r8")  = ARG4;              \
@@ -111,16 +118,18 @@ index 0000000..367fcb1
 +
 +#define SYSCALL_DEBUGLOG 0
 +#define SYSCALL_MMAP     1
++#define SYSCALL_OPEN     2
++#define SYSCALL_READ     3
 +
 +namespace mlibc {
 +
 +void sys_libc_log(const char *message) {
-+    int64_t ret, errno;
++    int ret, errno;
 +    SYSCALL1(SYSCALL_DEBUGLOG, message);
 +}
 +
 +void sys_libc_panic() {
-+    sys_libc_log("MLIBC PANIC\n");
++    sys_libc_log("\nMLIBC PANIC\n");
 +    for (;;);
 +}
 +
@@ -129,15 +138,33 @@ index 0000000..367fcb1
 +int sys_futex_wait(int *pointer, int expected) STUB_ONLY
 +int sys_futex_wake(int *pointer) STUB_ONLY
 +int sys_seek(int fd, off_t offset, int whence, off_t *new_offset) STUB_ONLY
-+int sys_read(int fd, void *buf, size_t count, ssize_t *bytes_read) STUB_ONLY
 +int sys_write(int fd, const void *buf, size_t count, ssize_t *bytes_written) STUB_ONLY
 +int sys_close(int fd) STUB_ONLY
-+int sys_open(const char *path, int flags, int *fd) STUB_ONLY
++
++int sys_open(const char *path, int flags, int *fd) {
++    int ret;
++    int errno;
++    SYSCALL3(SYSCALL_OPEN, path, flags, 0);
++    if (ret == -1)
++        return errno;
++    *fd = ret;
++    return 0;
++}
++
++int sys_read(int fd, void *buf, size_t count, ssize_t *bytes_read) {
++    ssize_t ret;
++    int errno;
++    SYSCALL3(SYSCALL_READ, fd, buf, count);
++    if (ret == -1)
++        return errno;
++    *bytes_read = ret;
++    return 0;
++}
 +
 +int sys_vm_map(void *hint, size_t size, int prot, int flags,
 +               int fd, off_t offset, void **window) {
 +    void *ret;
-+    int64_t errno;
++    int errno;
 +    SYSCALL6(SYSCALL_MMAP, hint, size, prot, flags, fd, offset);
 +    if (ret == NULL)
 +        return errno;

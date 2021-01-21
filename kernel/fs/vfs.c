@@ -5,6 +5,9 @@
 #include <lib/print.h>
 #include <dev/dev.h>
 #include <lib/lock.h>
+#include <sys/cpu.h>
+#include <sched/sched.h>
+#include <lib/errno.h>
 
 lock_t vfs_lock = {0};
 
@@ -175,7 +178,7 @@ next:;
         }
 
         if (!S_ISDIR(cur_node->res->st.st_mode)) {
-            // errno = ENOTDIR;
+            errno = ENOTDIR;
             return NULL;
         }
 
@@ -185,7 +188,7 @@ next:;
         if (cur_node->child == NULL) {
             cur_node->child = cur_node->fs->populate(cur_node);
             if (cur_node->child == NULL) {
-                // errno = ENOTDIR;
+                errno = ENOTDIR;
                 return NULL;
             }
         }
@@ -207,10 +210,10 @@ epilogue:
         }
     }
 
-    // if (last)
-    //     errno = ENOENT;
-    // else
-    //     errno = ENOTDIR;
+    if (last)
+        errno = ENOENT;
+    else
+        errno = ENOTDIR;
     return NULL;
 }
 
@@ -233,7 +236,7 @@ bool vfs_mount(const char *source, const char *target, const char *fstype) {
         return false;
 
     if (!S_ISDIR(tgt_node->res->st.st_mode)) {
-        // errno = ENOTDIR;
+        errno = ENOTDIR;
         return false;
     }
 
@@ -333,6 +336,51 @@ struct vfs_node *vfs_new_node_deep(struct vfs_node *parent, const char *name) {
     return new_node;
 }
 
+void syscall_open(struct cpu_gpr_context *ctx) {
+    const char *path  = (const char *) ctx->rdi;
+    int         flags = (int)          ctx->rsi;
+    mode_t      mode  = (mode_t)       ctx->rdx;
+
+    struct resource *res = vfs_open(path, flags, mode);
+
+    if (res == NULL) {
+        ctx->rax = (uint64_t)-1;
+        return;
+    }
+
+    struct handle *handle = alloc(sizeof(struct handle));
+
+    handle->res = res;
+    handle->loc = 0;
+
+    struct process *process = this_cpu->current_thread->process;
+
+    int ret = DYNARRAY_INSERT(process->handles, handle);
+
+    ctx->rax = (uint64_t)ret;
+}
+
+void syscall_read(struct cpu_gpr_context *ctx) {
+    int    fd    = (int)    ctx->rdi;
+    void  *buf   = (void *) ctx->rsi;
+    size_t count = (size_t) ctx->rdx;
+
+    struct process *process = this_cpu->current_thread->process;
+
+    struct handle *handle = process->handles.storage[fd];
+
+    ssize_t ret = handle->res->read(handle->res, buf, handle->loc, count);
+
+    if (ret == -1) {
+        ctx->rax = (uint64_t)-1;
+        return;
+    }
+
+    handle->loc += ret;
+
+    ctx->rax = (uint64_t)ret;
+}
+
 struct resource *vfs_open(const char *path, int oflags, mode_t mode) {
     SPINLOCK_ACQUIRE(vfs_lock);
 
@@ -381,7 +429,7 @@ bool vfs_stat(const char *path, struct stat *st) {
 
     struct vfs_node *node = path2node(NULL, path, NO_CREATE);
     if (node == NULL) {
-        // errno = ENOENT;
+        errno = ENOENT;
         LOCK_RELEASE(vfs_lock);
         return false;
     }

@@ -29,6 +29,7 @@ struct process {
     DYNARRAY_STRUCT(struct thread *) threads;
     uintptr_t thread_stack_top;
     uintptr_t mmap_anon_non_fixed_base;
+    DYNARRAY_STRUCT(struct handle *) handles;
 };
 
 void sched_init(void);

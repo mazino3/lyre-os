@@ -21,6 +21,11 @@ struct resource {
     int     (*ioctl)(struct resource *this, int request, ...);
 };
 
+struct handle {
+    struct resource *res;
+    off_t loc;
+};
+
 void *resource_create(size_t actual_size);
 
 #endif

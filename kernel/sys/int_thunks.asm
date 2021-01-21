@@ -45,6 +45,10 @@ syscall_table:
     dq syscall_debug_log
     extern syscall_mmap
     dq syscall_mmap
+    extern syscall_open
+    dq syscall_open
+    extern syscall_read
+    dq syscall_read
   .end:
 
 section .text
@@ -56,14 +60,14 @@ syscall_entry:
 
     swapgs
 
-    mov qword [gs:0024], rsp ; save the user stack
-    mov rsp, qword [gs:0016] ; switch to the kernel space stack for the thread
+    mov qword [gs:0016], rsp ; save the user stack
+    mov rsp, qword [gs:0008] ; switch to the kernel space stack for the thread
 
     sti
     cld
 
     push 0x1b            ; ss
-    push qword [gs:0024] ; rsp
+    push qword [gs:0016] ; rsp
     push r11             ; rflags
     push 0x23            ; cs
     push rcx             ; rip
@@ -88,7 +92,7 @@ syscall_entry:
 
     call [syscall_table + rax * 8]
 
-    pop rbx  ; trashed pop
+    pop rax
     pop rbx
     pop rcx
     pop rdx
@@ -104,11 +108,11 @@ syscall_entry:
     pop r14
     pop r15
 
-    mov rdx, qword [gs:0032] ; return errno in rdx
+    mov rdx, qword [gs:0024] ; return errno in rdx
 
     cli
 
-    mov rsp, qword [gs:0024] ; restore the user stack
+    mov rsp, qword [gs:0016] ; restore the user stack
 
     swapgs
 

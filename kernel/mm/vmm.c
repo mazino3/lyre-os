@@ -219,7 +219,7 @@ void *mmap(struct pagemap *pm, void *addr, size_t length, int prot, int flags,
     return NULL;
 }
 
-void *syscall_mmap(struct cpu_gpr_context *ctx) {
+void syscall_mmap(struct cpu_gpr_context *ctx) {
     void  *addr   = (void *) ctx->rdi;
     size_t length = (size_t) ctx->rsi;
     int    prot   = (int)    ctx->rdx;
@@ -227,6 +227,6 @@ void *syscall_mmap(struct cpu_gpr_context *ctx) {
     int    fd     = (int)    ctx->r8;
     off_t  offset = (off_t)  ctx->r9;
 
-    return mmap(this_cpu->current_thread->process->pagemap,
-                addr, length, prot, flags, NULL, offset);
+    ctx->rax = (uint64_t)mmap(this_cpu->current_thread->process->pagemap,
+                              addr, length, prot, flags, NULL, offset);
 }

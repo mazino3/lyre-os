@@ -360,6 +360,19 @@ void syscall_open(struct cpu_gpr_context *ctx) {
     ctx->rax = (uint64_t)ret;
 }
 
+void syscall_close(struct cpu_gpr_context *ctx) {
+    int fd = (int)ctx->rdi;
+
+    struct process *process = this_cpu->current_thread->process;
+
+    struct handle *handle = process->handles.storage[fd];
+
+    ctx->rax = (uint64_t)handle->res->close(handle->res);
+
+    process->handles.storage[fd] = NULL;
+    free(handle);
+}
+
 void syscall_read(struct cpu_gpr_context *ctx) {
     int    fd    = (int)    ctx->rdi;
     void  *buf   = (void *) ctx->rsi;
@@ -379,6 +392,63 @@ void syscall_read(struct cpu_gpr_context *ctx) {
     handle->loc += ret;
 
     ctx->rax = (uint64_t)ret;
+}
+
+void syscall_write(struct cpu_gpr_context *ctx) {
+    int    fd    = (int)    ctx->rdi;
+    void  *buf   = (void *) ctx->rsi;
+    size_t count = (size_t) ctx->rdx;
+
+    struct process *process = this_cpu->current_thread->process;
+
+    struct handle *handle = process->handles.storage[fd];
+
+    ssize_t ret = handle->res->write(handle->res, buf, handle->loc, count);
+
+    if (ret == -1) {
+        ctx->rax = (uint64_t)-1;
+        return;
+    }
+
+    handle->loc += ret;
+
+    ctx->rax = (uint64_t)ret;
+}
+
+#define SEEK_CUR 1
+#define SEEK_END 2
+#define SEEK_SET 3
+
+void syscall_seek(struct cpu_gpr_context *ctx) {
+    int   fd     = (int)   ctx->rdi;
+    off_t offset = (off_t) ctx->rsi;
+    int   whence = (int)   ctx->rdx;
+
+    struct process *process = this_cpu->current_thread->process;
+
+    struct handle *handle = process->handles.storage[fd];
+
+    off_t base;
+    switch (whence) {
+        case SEEK_SET:
+            base = offset;
+            break;
+        case SEEK_CUR:
+            base = handle->loc + offset;
+            break;
+        case SEEK_END:
+            base = handle->res->st.st_size + offset;
+            break;
+    }
+
+    if (base < 0 || base >= handle->res->st.st_size) {
+        errno = EINVAL;
+        ctx->rax = (uint64_t)-1;
+        return;
+    }
+
+    handle->loc = base;
+    ctx->rax = (uint64_t)base;
 }
 
 struct resource *vfs_open(const char *path, int oflags, mode_t mode) {

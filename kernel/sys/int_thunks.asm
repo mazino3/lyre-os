@@ -49,6 +49,12 @@ syscall_table:
     dq syscall_open
     extern syscall_read
     dq syscall_read
+    extern syscall_write
+    dq syscall_write
+    extern syscall_seek
+    dq syscall_seek
+    extern syscall_close
+    dq syscall_close
   .end:
 
 section .text

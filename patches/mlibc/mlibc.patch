@@ -77,10 +77,10 @@ index 0000000..ee7a794
 +
 diff --git a/mlibc-workdir/sysdeps/lyre/generic/generic.cpp b/mlibc-workdir/sysdeps/lyre/generic/generic.cpp
 new file mode 100644
-index 0000000..cb0332b
+index 0000000..f026b1e
 --- /dev/null
 +++ b/mlibc-workdir/sysdeps/lyre/generic/generic.cpp
-@@ -0,0 +1,103 @@
+@@ -0,0 +1,131 @@
 +#include <bits/ensure.h>
 +#include <mlibc/debug.hpp>
 +#include <mlibc/all-sysdeps.hpp>
@@ -120,6 +120,9 @@ index 0000000..cb0332b
 +#define SYSCALL_MMAP     1
 +#define SYSCALL_OPEN     2
 +#define SYSCALL_READ     3
++#define SYSCALL_WRITE    4
++#define SYSCALL_SEEK     5
++#define SYSCALL_CLOSE    6
 +
 +namespace mlibc {
 +
@@ -137,9 +140,6 @@ index 0000000..cb0332b
 +int sys_tcb_set(void *pointer) STUB_ONLY
 +int sys_futex_wait(int *pointer, int expected) STUB_ONLY
 +int sys_futex_wake(int *pointer) STUB_ONLY
-+int sys_seek(int fd, off_t offset, int whence, off_t *new_offset) STUB_ONLY
-+int sys_write(int fd, const void *buf, size_t count, ssize_t *bytes_written) STUB_ONLY
-+int sys_close(int fd) STUB_ONLY
 +
 +int sys_open(const char *path, int flags, int *fd) {
 +    int ret;
@@ -151,6 +151,24 @@ index 0000000..cb0332b
 +    return 0;
 +}
 +
++int sys_close(int fd) {
++    int ret, errno;
++    SYSCALL1(SYSCALL_CLOSE, fd);
++    if (ret == -1)
++        return errno;
++    return 0;
++}
++
++int sys_seek(int fd, off_t offset, int whence, off_t *new_offset) {
++    off_t ret;
++    int errno;
++    SYSCALL3(SYSCALL_SEEK, fd, offset, whence);
++    if (ret == -1)
++        return errno;
++    *new_offset = ret;
++    return 0;
++}
++
 +int sys_read(int fd, void *buf, size_t count, ssize_t *bytes_read) {
 +    ssize_t ret;
 +    int errno;
@@ -158,6 +176,16 @@ index 0000000..cb0332b
 +    if (ret == -1)
 +        return errno;
 +    *bytes_read = ret;
++    return 0;
++}
++
++int sys_write(int fd, const void *buf, size_t count, ssize_t *bytes_written) {
++    ssize_t ret;
++    int errno;
++    SYSCALL3(SYSCALL_WRITE, fd, buf, count);
++    if (ret == -1)
++        return errno;
++    *bytes_written = ret;
 +    return 0;
 +}
 +

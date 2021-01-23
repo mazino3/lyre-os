@@ -77,10 +77,10 @@ index 0000000..ee7a794
 +
 diff --git a/mlibc-workdir/sysdeps/lyre/generic/generic.cpp b/mlibc-workdir/sysdeps/lyre/generic/generic.cpp
 new file mode 100644
-index 0000000..fbe2e68
+index 0000000..d64e08d
 --- /dev/null
 +++ b/mlibc-workdir/sysdeps/lyre/generic/generic.cpp
-@@ -0,0 +1,138 @@
+@@ -0,0 +1,159 @@
 +#include <bits/ensure.h>
 +#include <mlibc/debug.hpp>
 +#include <mlibc/all-sysdeps.hpp>
@@ -116,14 +116,15 @@ index 0000000..fbe2e68
 +                  : "rcx", "r11", "memory");                   \
 +})
 +
-+#define SYSCALL_DEBUGLOG 0
-+#define SYSCALL_MMAP     1
-+#define SYSCALL_OPEN     2
-+#define SYSCALL_READ     3
-+#define SYSCALL_WRITE    4
-+#define SYSCALL_SEEK     5
-+#define SYSCALL_CLOSE    6
++#define SYSCALL_DEBUGLOG    0
++#define SYSCALL_MMAP        1
++#define SYSCALL_OPEN        2
++#define SYSCALL_READ        3
++#define SYSCALL_WRITE       4
++#define SYSCALL_SEEK        5
++#define SYSCALL_CLOSE       6
 +#define SYSCALL_SET_FS_BASE 7
++#define SYSCALL_IOCTL       8
 +
 +namespace mlibc {
 +
@@ -147,6 +148,26 @@ index 0000000..fbe2e68
 +
 +int sys_futex_wait(int *pointer, int expected) STUB_ONLY
 +int sys_futex_wake(int *pointer) STUB_ONLY
++
++int sys_ioctl(int fd, unsigned long request, void *arg, int *result) {
++    int ret;
++    int errno;
++    SYSCALL3(SYSCALL_IOCTL, fd, request, arg);
++    if (ret == -1)
++        return errno;
++    *result = ret;
++    return 0;
++}
++
++int sys_isatty(int fd) {
++    struct winsize ws;
++    int ret;
++
++    if (!sys_ioctl(fd, TIOCGWINSZ, &ws, &ret))
++        return 0;
++
++    return ENOTTY;
++}
 +
 +int sys_open(const char *path, int flags, int *fd) {
 +    int ret;

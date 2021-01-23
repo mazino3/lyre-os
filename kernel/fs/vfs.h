@@ -10,7 +10,11 @@ extern lock_t vfs_lock;
 
 struct filesystem {
     const char *name;
-    bool needs_backing_device;
+    enum {
+        BACKING_DEV_YES,
+        BACKING_DEV_NO,
+        BACKING_DEV_NO_NOGEN
+    } needs_backing_device;
     struct vfs_node *(*mount)(struct resource *device);
     struct vfs_node *(*populate)(struct vfs_node *node);
     struct resource *(*open)(struct vfs_node *node, bool new_node, mode_t mode);

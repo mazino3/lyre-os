@@ -37,7 +37,10 @@ void sched_init(void);
 
 struct process *sched_start_program(const char *path,
                                     const char **argv,
-                                    const char **envp);
+                                    const char **envp,
+                                    const char *stdin,
+                                    const char *stdout,
+                                    const char *stderr);
 
 struct process *sched_new_process(struct pagemap *pagemap);
 

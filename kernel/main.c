@@ -29,6 +29,9 @@ static void main_thread(struct stivale2_struct *stivale2_struct) {
     vfs_dump_nodes(NULL, "");
     vfs_mount("devtmpfs", "/dev", "devtmpfs");
 
+    dev_init();
+    vfs_dump_nodes(NULL, "");
+
     struct stivale2_struct_tag_modules *modules_tag =
         stivale2_get_tag(stivale2_struct, STIVALE2_STRUCT_TAG_MODULES_ID);
 
@@ -43,7 +46,8 @@ static void main_thread(struct stivale2_struct *stivale2_struct) {
 
     const char *argv[] = { "/usr/bin/hello", NULL };
     const char *envp[] = { NULL };
-    sched_start_program("/usr/bin/hello", argv, envp);
+    sched_start_program("/usr/bin/hello", argv, envp,
+                        "/dev/e9", "/dev/e9", "/dev/e9");
 
     for (;;) asm ("hlt");
 }

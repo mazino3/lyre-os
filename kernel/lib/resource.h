@@ -18,7 +18,7 @@ struct resource {
     int     (*close)(struct resource *this);
     ssize_t (*read)(struct resource *this, void *buf, off_t loc, size_t count);
     ssize_t (*write)(struct resource *this, const void *buf, off_t loc, size_t count);
-    int     (*ioctl)(struct resource *this, int request, ...);
+    int     (*ioctl)(struct resource *this, int request, void *argp);
 };
 
 struct handle {

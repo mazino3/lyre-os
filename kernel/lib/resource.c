@@ -2,11 +2,14 @@
 #include <lib/resource.h>
 #include <lib/types.h>
 #include <lib/alloc.h>
+#include <lib/ioctl.h>
+#include <lib/errno.h>
 
 // These functions should be stubs for generic kernel handles unused functions.
 
 static int stub_close(struct resource *this) {
     (void)this;
+    errno = EINVAL;
     return -1;
 }
 
@@ -15,6 +18,7 @@ static ssize_t stub_read(struct resource *this, void *buf, off_t loc, size_t cou
     (void)buf;
     (void)loc;
     (void)count;
+    errno = EINVAL;
     return -1;
 }
 
@@ -23,12 +27,19 @@ static ssize_t stub_write(struct resource *this, const void *buf, off_t loc, siz
     (void)buf;
     (void)loc;
     (void)count;
+    errno = EINVAL;
     return -1;
 }
 
-static int stub_ioctl(struct resource *this, int request, ...) {
+static int stub_ioctl(struct resource *this, int request, void *argp) {
     (void)this;
     (void)request;
+    switch (request) {
+        case TCGETS: case TCSETS: case TIOCSCTTY: case TIOCGWINSZ:
+            errno = ENOTTY;
+            return -1;
+    }
+    errno = EINVAL;
     return -1;
 }
 

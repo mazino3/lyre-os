@@ -33,12 +33,19 @@ bool devtmpfs_add_device(struct resource *res, const char *name) {
         return false;
 
     new_node->res = res;
+    res->st.st_dev = devfs_mount_gate.backing_dev_id;
+    res->st.st_ino = inode_counter++;
+    res->st.st_nlink = 1;
 
     return true;
 }
 
 static struct vfs_node *devtmpfs_mount(struct resource *device) {
     (void)device;
+
+    if (devfs_mount_gate.backing_dev_id == 0) {
+        devfs_mount_gate.backing_dev_id = dev_new_id();
+    }
 
     return &devfs_mount_gate;
 }
@@ -140,7 +147,7 @@ static struct vfs_node *devtmpfs_populate(struct vfs_node *node) {
 
 struct filesystem devtmpfs = {
     .name     = "devtmpfs",
-    .needs_backing_device = false,
+    .needs_backing_device = BACKING_DEV_NO_NOGEN,
     .mount    = devtmpfs_mount,
     .open     = devtmpfs_open,
     .mkdir    = devtmpfs_mkdir,

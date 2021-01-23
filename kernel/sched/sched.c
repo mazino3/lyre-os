@@ -26,7 +26,10 @@ DYNARRAY_STATIC(struct thread *, idle_queue);
 
 struct process *sched_start_program(const char *path,
                                     const char **argv,
-                                    const char **envp) {
+                                    const char **envp,
+                                    const char *stdin,
+                                    const char *stdout,
+                                    const char *stderr) {
     struct resource *file = vfs_open(path, O_RDONLY, 0);
     if (file == NULL)
         return NULL;
@@ -60,6 +63,22 @@ struct process *sched_start_program(const char *path,
 
         entry_point = (void *)ld_auxval.at_entry;
     }
+
+    // open stdin, stdout, and stderr
+    struct resource *stdin_res  = vfs_open(stdin,  O_RDONLY, 0);
+    struct resource *stdout_res = vfs_open(stdout, O_WRONLY, 0);
+    struct resource *stderr_res = vfs_open(stderr, O_WRONLY, 0);
+
+    struct handle *stdin_handle  = alloc(sizeof(struct handle));
+    stdin_handle->res = stdin_res;
+    struct handle *stdout_handle = alloc(sizeof(struct handle));
+    stdout_handle->res = stdout_res;
+    struct handle *stderr_handle = alloc(sizeof(struct handle));
+    stderr_handle->res = stderr_res;
+
+    DYNARRAY_INSERT(new_process->handles, stdin_handle);
+    DYNARRAY_INSERT(new_process->handles, stdout_handle);
+    DYNARRAY_INSERT(new_process->handles, stderr_handle);
 
     sched_new_thread(new_process, true, entry_point, NULL,
                      argv, envp, &auxval);

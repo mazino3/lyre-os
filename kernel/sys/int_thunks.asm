@@ -57,6 +57,8 @@ syscall_table:
     dq syscall_close
     extern syscall_set_fs_base
     dq syscall_set_fs_base
+    extern syscall_ioctl
+    dq syscall_ioctl
   .end:
 
 section .text

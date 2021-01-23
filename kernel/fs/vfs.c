@@ -242,7 +242,7 @@ bool vfs_mount(const char *source, const char *target, const char *fstype) {
 
     dev_t backing_dev_id;
     struct resource *src_handle = NULL;
-    if (fs->needs_backing_device) {
+    if (fs->needs_backing_device == BACKING_DEV_YES) {
         struct vfs_node *backing_dev_node = path2node(NULL, source, NO_CREATE);
         if (backing_dev_node == NULL)
             return false;
@@ -253,17 +253,19 @@ bool vfs_mount(const char *source, const char *target, const char *fstype) {
         if (src_handle == NULL)
             return false;
         backing_dev_id = backing_dev_node->res->st.st_rdev;
-    } else {
+    } else if (fs->needs_backing_device == BACKING_DEV_NO) {
         backing_dev_id = dev_new_id();
     }
 
     struct vfs_node *mount_gate = fs->mount(src_handle);
     if (mount_gate == NULL) {
-        // vfs_close(src_handle);
+        src_handle->close(src_handle);
         return false;
     }
 
-    mount_gate->backing_dev_id = backing_dev_id;
+    if (fs->needs_backing_device != BACKING_DEV_NO_NOGEN) {
+        mount_gate->backing_dev_id = backing_dev_id;
+    }
 
     tgt_node->mount_gate = mount_gate;
 
@@ -415,6 +417,25 @@ void syscall_write(struct cpu_gpr_context *ctx) {
     ctx->rax = (uint64_t)ret;
 }
 
+void syscall_ioctl(struct cpu_gpr_context *ctx) {
+    int   fd      = (int)    ctx->rdi;
+    int   request = (int)    ctx->rsi;
+    void *argp    = (void *) ctx->rdx;
+
+    struct process *process = this_cpu->current_thread->process;
+
+    struct handle *handle = process->handles.storage[fd];
+
+    int ret = handle->res->ioctl(handle->res, request, argp);
+
+    if (ret == -1) {
+        ctx->rax = (uint64_t)-1;
+        return;
+    }
+
+    ctx->rax = (uint64_t)ret;
+}
+
 #define SEEK_CUR 1
 #define SEEK_END 2
 #define SEEK_SET 3
@@ -439,9 +460,13 @@ void syscall_seek(struct cpu_gpr_context *ctx) {
         case SEEK_END:
             base = handle->res->st.st_size + offset;
             break;
+        default:
+            errno = EINVAL;
+            ctx->rax = (uint64_t)-1;
+            return;
     }
 
-    if (base < 0 || base >= handle->res->st.st_size) {
+    if (base < 0 || (handle->res->st.st_size != 0 && base >= handle->res->st.st_size)) {
         errno = EINVAL;
         ctx->rax = (uint64_t)-1;
         return;

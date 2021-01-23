@@ -133,7 +133,7 @@ static struct vfs_node *tmpfs_populate(struct vfs_node *node) {
 
 struct filesystem tmpfs = {
     .name     = "tmpfs",
-    .needs_backing_device = false,
+    .needs_backing_device = BACKING_DEV_NO,
     .mount    = tmpfs_mount,
     .open     = tmpfs_open,
     .mkdir    = tmpfs_mkdir,

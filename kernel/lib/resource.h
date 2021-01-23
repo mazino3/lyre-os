@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <lib/types.h>
 #include <lib/lock.h>
+#include <fs/vfs.h>
 
 // This is the base class for all kernel handles.
 
@@ -22,7 +23,14 @@ struct resource {
 };
 
 struct handle {
-    struct resource *res;
+    enum {
+        HANDLE_RESOURCE,
+        HANDLE_DIRECTORY
+    } type;
+    union {
+        struct resource *res;
+        struct vfs_node *node;
+    };
     off_t loc;
 };
 

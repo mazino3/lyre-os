@@ -9,6 +9,8 @@
 #include <sched/sched.h>
 #include <lib/errno.h>
 
+#define AT_FDCWD -100
+
 lock_t vfs_lock = {0};
 
 DYNARRAY_STATIC(struct filesystem *, filesystems);
@@ -455,6 +457,44 @@ void syscall_chdir(struct cpu_gpr_context *ctx) {
     }
 
     process->current_directory = new_dir;
+    ctx->rax = 0;
+}
+
+void syscall_mkdirat(struct cpu_gpr_context *ctx) {
+    int         dirfd = (int)          ctx->rdi;
+    const char *path  = (const char *) ctx->rsi;
+    mode_t      mode  = (mode_t)       ctx->rdx;
+
+    bool is_absolute = *path == '/';
+
+    struct process *process = this_cpu->current_thread->process;
+
+    struct vfs_node *parent;
+    if (is_absolute) {
+        parent = &vfs_root_node;
+    } else {
+        if (dirfd == AT_FDCWD) {
+            parent = process->current_directory;
+        } else {
+            struct handle *dir_handle = process->handles.storage[dirfd];
+
+            if (dir_handle->type != HANDLE_DIRECTORY) {
+                errno = ENOTDIR;
+                ctx->rax = (uint64_t)-1;
+                return;
+            }
+
+            parent = dir_handle->node;
+        }
+    }
+
+    struct vfs_node *new_dir = vfs_mkdir(parent, path, mode, false);
+
+    if (new_dir == NULL) {
+        ctx->rax = (uint64_t)-1;
+        return;
+    }
+
     ctx->rax = 0;
 }
 

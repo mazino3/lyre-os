@@ -63,6 +63,8 @@ syscall_table:
     dq syscall_getpid
     extern syscall_chdir
     dq syscall_chdir
+    extern syscall_mkdirat
+    dq syscall_mkdirat
   .end:
 
 section .text

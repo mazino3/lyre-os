@@ -77,10 +77,10 @@ index 0000000..ee7a794
 +
 diff --git a/ports/mlibc-workdir/sysdeps/lyre/generic/generic.cpp b/ports/mlibc-workdir/sysdeps/lyre/generic/generic.cpp
 new file mode 100644
-index 0000000..f5c1e71
+index 0000000..c9b1589
 --- /dev/null
 +++ b/ports/mlibc-workdir/sysdeps/lyre/generic/generic.cpp
-@@ -0,0 +1,196 @@
+@@ -0,0 +1,209 @@
 +#include <bits/ensure.h>
 +#include <mlibc/debug.hpp>
 +#include <mlibc/all-sysdeps.hpp>
@@ -134,6 +134,7 @@ index 0000000..f5c1e71
 +#define SYSCALL_IOCTL       8
 +#define SYSCALL_GETPID      9
 +#define SYSCALL_CHDIR       10
++#define SYSCALL_MKDIRAT     11
 +
 +namespace mlibc {
 +
@@ -271,6 +272,18 @@ index 0000000..f5c1e71
 +int sys_chdir(const char *path) {
 +    int ret, errno;
 +    SYSCALL1(SYSCALL_CHDIR, path);
++    if (ret == -1)
++        return errno;
++    return 0;
++}
++
++int sys_mkdir(const char *path) {
++    return sys_mkdirat(AT_FDCWD, path, 0755);
++}
++
++int sys_mkdirat(int dirfd, const char *path, mode_t mode) {
++    int ret, errno;
++    SYSCALL3(SYSCALL_MKDIRAT, dirfd, path, mode);
 +    if (ret == -1)
 +        return errno;
 +    return 0;

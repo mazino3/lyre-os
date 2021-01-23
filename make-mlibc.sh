@@ -16,6 +16,9 @@ set -ex
 
 git diff --no-index mlibc-orig mlibc-workdir >patches/mlibc/mlibc.patch || true
 
+[ -d mlibc ] && mv mlibc/subprojects ./mlibc-subprojects
 rm -rf mlibc
+mkdir mlibc
+mv ./mlibc-subprojects mlibc/subprojects || true
 cd build
 xbstrap install -u mlibc

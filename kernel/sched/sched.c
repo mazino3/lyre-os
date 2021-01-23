@@ -165,7 +165,7 @@ struct thread *sched_new_thread(struct process *proc,
         stack -= 2; *stack = AT_PHENT;  *(stack + 1) = auxval->at_phent;
         stack -= 2; *stack = AT_PHNUM;  *(stack + 1) = auxval->at_phnum;
 
-        uintptr_t sa = stack_top;
+        uintptr_t sa = new_thread->ctx.rsp;
 
         *(--stack) = 0; /* Marker for end of environ */
         stack -= nenv;
@@ -246,6 +246,8 @@ void reschedule(struct cpu_gpr_context *ctx) {
 
     if (current_thread != NULL) {
         current_thread->ctx = *ctx;
+        current_thread->user_gs = get_user_gs();
+        current_thread->user_fs = get_user_fs();
         LOCK_RELEASE(current_thread->lock);
     }
 
@@ -268,6 +270,7 @@ void reschedule(struct cpu_gpr_context *ctx) {
     cpu_local->current_thread = current_thread;
 
     set_user_gs(current_thread->user_gs);
+    set_user_fs(current_thread->user_fs);
 
     cpu_local->kernel_stack = current_thread->kernel_stack;
 

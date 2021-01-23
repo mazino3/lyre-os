@@ -190,6 +190,18 @@ static inline void set_user_gs(uintptr_t addr) {
     wrmsr(0xc0000102, addr);
 }
 
+static inline void set_user_fs(uintptr_t addr) {
+    wrmsr(0xc0000100, addr);
+}
+
+static inline uintptr_t get_user_gs(void) {
+    return rdmsr(0xc0000102);
+}
+
+static inline uintptr_t get_user_fs(void) {
+    return rdmsr(0xc0000100);
+}
+
 static inline void swapgs(void) {
     asm volatile ("swapgs" ::: "memory");
 }

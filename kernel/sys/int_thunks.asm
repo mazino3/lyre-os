@@ -55,6 +55,8 @@ syscall_table:
     dq syscall_seek
     extern syscall_close
     dq syscall_close
+    extern syscall_set_fs_base
+    dq syscall_set_fs_base
   .end:
 
 section .text

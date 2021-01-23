@@ -52,6 +52,12 @@ void smp_init(struct stivale2_struct_tag_smp *smp_tag) {
 
 extern void syscall_entry(void);
 
+void syscall_set_fs_base(struct cpu_gpr_context *ctx) {
+    uintptr_t ptr = (uintptr_t)ctx->rdi;
+
+    set_user_fs(ptr);
+}
+
 static void cpu_init(struct stivale2_smp_info *smp_info) {
     smp_info = (void *)smp_info + MEM_PHYS_OFFSET;
 

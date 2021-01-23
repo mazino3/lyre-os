@@ -20,6 +20,7 @@ struct thread {
     struct cpu_gpr_context ctx;
     struct process *process;
     uintptr_t user_gs;
+    uintptr_t user_fs;
     uintptr_t kernel_stack;
 };
 

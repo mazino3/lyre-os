@@ -10,6 +10,7 @@
 #include <lib/elf.h>
 #include <sys/cpu.h>
 #include <mm/vmm.h>
+#include <fs/vfs.h>
 
 struct process;
 
@@ -31,6 +32,7 @@ struct process {
     uintptr_t thread_stack_top;
     uintptr_t mmap_anon_non_fixed_base;
     DYNARRAY_STRUCT(struct handle *) handles;
+    struct vfs_node *current_directory;
 };
 
 void sched_init(void);

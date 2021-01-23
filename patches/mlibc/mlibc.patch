@@ -77,10 +77,10 @@ index 0000000..ee7a794
 +
 diff --git a/ports/mlibc-workdir/sysdeps/lyre/generic/generic.cpp b/ports/mlibc-workdir/sysdeps/lyre/generic/generic.cpp
 new file mode 100644
-index 0000000..d64e08d
+index 0000000..f5c1e71
 --- /dev/null
 +++ b/ports/mlibc-workdir/sysdeps/lyre/generic/generic.cpp
-@@ -0,0 +1,159 @@
+@@ -0,0 +1,196 @@
 +#include <bits/ensure.h>
 +#include <mlibc/debug.hpp>
 +#include <mlibc/all-sysdeps.hpp>
@@ -90,6 +90,13 @@ index 0000000..d64e08d
 +#include <limits.h>
 +
 +#define STUB_ONLY { __ensure(!"STUB_ONLY function was called"); __builtin_unreachable(); }
++
++#define SYSCALL0(NUM) ({                     \
++    asm volatile ("syscall"                  \
++                  : "=a"(ret), "=d"(errno)   \
++                  : "a"(NUM)                 \
++                  : "rcx", "r11", "memory"); \
++})
 +
 +#define SYSCALL1(NUM, ARG0) ({               \
 +    asm volatile ("syscall"                  \
@@ -125,6 +132,8 @@ index 0000000..d64e08d
 +#define SYSCALL_CLOSE       6
 +#define SYSCALL_SET_FS_BASE 7
 +#define SYSCALL_IOCTL       8
++#define SYSCALL_GETPID      9
++#define SYSCALL_CHDIR       10
 +
 +namespace mlibc {
 +
@@ -238,6 +247,34 @@ index 0000000..d64e08d
 +
 +int sys_anon_free(void *pointer, size_t size) STUB_ONLY
 +int sys_clock_get(int clock, time_t *secs, long *nanos) STUB_ONLY
++
++pid_t sys_getpid() {
++    pid_t ret;
++    int errno;
++    SYSCALL0(SYSCALL_GETPID);
++    return ret;
++}
++
++uid_t sys_getuid() {
++    mlibc::infoLogger() << "mlibc: " << __func__ << " is a stub!\n";
++    return 0;
++}
++
++int sys_access(const char *path, int mode) {
++	int fd;
++	if(int e = sys_open(path, O_RDWR, &fd); e)
++		return e;
++	sys_close(fd);
++	return 0;
++}
++
++int sys_chdir(const char *path) {
++    int ret, errno;
++    SYSCALL1(SYSCALL_CHDIR, path);
++    if (ret == -1)
++        return errno;
++    return 0;
++}
 +
 +} // namespace mlibc
 diff --git a/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/abi.h b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/abi.h

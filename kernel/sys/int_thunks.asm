@@ -59,6 +59,10 @@ syscall_table:
     dq syscall_set_fs_base
     extern syscall_ioctl
     dq syscall_ioctl
+    extern syscall_getpid
+    dq syscall_getpid
+    extern syscall_chdir
+    dq syscall_chdir
   .end:
 
 section .text

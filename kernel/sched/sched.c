@@ -11,7 +11,7 @@
 #include <lib/print.h>
 #include <fs/vfs.h>
 
-#define THREAD_STACK_SIZE ((size_t)8192)
+#define THREAD_STACK_SIZE ((size_t)32768)
 #define THREAD_STACK_TOP  ((uintptr_t)0x70000000000)
 
 static lock_t sched_lock = {0};
@@ -23,6 +23,10 @@ DYNARRAY_STATIC(struct process *, processes);
 DYNARRAY_STATIC(struct thread *, threads);
 DYNARRAY_STATIC(struct thread *, running_queue);
 DYNARRAY_STATIC(struct thread *, idle_queue);
+
+void syscall_getpid(struct cpu_gpr_context *ctx) {
+    ctx->rax = (uint64_t)this_cpu->current_thread->process->pid;
+}
 
 struct process *sched_start_program(const char *path,
                                     const char **argv,
@@ -94,10 +98,19 @@ struct process *sched_new_process(struct pagemap *pagemap) {
     new_process->pagemap = pagemap;
     new_process->thread_stack_top = THREAD_STACK_TOP;
     new_process->mmap_anon_non_fixed_base = MMAP_ANON_NON_FIXED_BASE;
+    new_process->current_directory = &vfs_root_node;
 
     SPINLOCK_ACQUIRE(sched_lock);
 
+
     pid_t pid = DYNARRAY_INSERT(processes, new_process);
+
+    if (pid == 0) {
+        // hack to make sure process 0 is not allocated
+        processes.storage[0] = (void*)-1;
+        pid = DYNARRAY_INSERT(processes, new_process);
+    }
+
     new_process->pid = pid;
 
     LOCK_RELEASE(sched_lock);

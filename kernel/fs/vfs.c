@@ -93,7 +93,7 @@ static struct resource root_res = {
     }
 };
 
-static struct vfs_node root_node = {
+struct vfs_node vfs_root_node = {
     .name           = "/",
     .res            = &root_res,
     .mount_data     = NULL,
@@ -133,7 +133,7 @@ static struct vfs_node *path2node(struct vfs_node *parent, const char *_path, in
             break;
     }
 
-    struct vfs_node *cur_parent = *path == '/' || parent == NULL ? &root_node : parent;
+    struct vfs_node *cur_parent = *path == '/' || parent == NULL ? &vfs_root_node : parent;
     if (cur_parent->mount_gate)
         cur_parent = cur_parent->mount_gate;
     struct vfs_node *cur_node   = cur_parent->child;
@@ -141,7 +141,7 @@ static struct vfs_node *path2node(struct vfs_node *parent, const char *_path, in
     while (*path == '/') {
         path++;
         if (!*path)
-            return &root_node;
+            return &vfs_root_node;
     }
 
 next:;
@@ -276,7 +276,7 @@ bool vfs_mount(const char *source, const char *target, const char *fstype) {
 
 struct vfs_node *vfs_mkdir(struct vfs_node *parent, const char *name, mode_t mode, bool recurse) {
     if (parent == NULL)
-        parent = &root_node;
+        parent = &vfs_root_node;
 
     struct vfs_node *new_dir = path2node(parent, name, NO_CREATE);
 
@@ -303,7 +303,7 @@ struct vfs_node *vfs_mkdir(struct vfs_node *parent, const char *name, mode_t mod
 
 struct vfs_node *vfs_new_node(struct vfs_node *parent, const char *name) {
     if (parent == NULL)
-        parent = &root_node;
+        parent = &vfs_root_node;
 
     if (parent->mount_gate)
         parent = parent->mount_gate;
@@ -436,6 +436,28 @@ void syscall_ioctl(struct cpu_gpr_context *ctx) {
     ctx->rax = (uint64_t)ret;
 }
 
+void syscall_chdir(struct cpu_gpr_context *ctx) {
+    const char *path = (const char *)ctx->rdi;
+
+    struct process *process = this_cpu->current_thread->process;
+
+    struct vfs_node *new_dir = path2node(process->current_directory, path, NO_CREATE);
+
+    if (new_dir == NULL) {
+        ctx->rax = (uint64_t)-1;
+        return;
+    }
+
+    if (!S_ISDIR(new_dir->res->st.st_mode)) {
+        ctx->rax = (uint64_t)-1;
+        errno = ENOTDIR;
+        return;
+    }
+
+    process->current_directory = new_dir;
+    ctx->rax = 0;
+}
+
 #define SEEK_CUR 1
 #define SEEK_END 2
 #define SEEK_SET 3
@@ -448,6 +470,11 @@ void syscall_seek(struct cpu_gpr_context *ctx) {
     struct process *process = this_cpu->current_thread->process;
 
     struct handle *handle = process->handles.storage[fd];
+
+    if (handle->res->st.st_size == 0) {
+        ctx->rax = 0;
+        return;
+    }
 
     off_t base;
     switch (whence) {
@@ -466,7 +493,7 @@ void syscall_seek(struct cpu_gpr_context *ctx) {
             return;
     }
 
-    if (base < 0 || (handle->res->st.st_size != 0 && base >= handle->res->st.st_size)) {
+    if (base < 0 || base >= handle->res->st.st_size) {
         errno = EINVAL;
         ctx->rax = (uint64_t)-1;
         return;
@@ -506,7 +533,7 @@ struct resource *vfs_open(const char *path, int oflags, mode_t mode) {
 }
 
 void vfs_dump_nodes(struct vfs_node *node, const char *parent) {
-    struct vfs_node *cur_node = node ? node : &root_node;
+    struct vfs_node *cur_node = node ? node : &vfs_root_node;
     for (; cur_node; cur_node = cur_node->next) {
         print("%s - %s\n", parent, cur_node->name);
         if (!strcmp(cur_node->name, ".") || !strcmp(cur_node->name, ".."))

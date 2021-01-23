@@ -44,9 +44,9 @@ static void main_thread(struct stivale2_struct *stivale2_struct) {
 
     print("CPU %u\n", this_cpu->cpu_number);
 
-    const char *argv[] = { "/usr/bin/hello", NULL };
+    const char *argv[] = { "/usr/sbin/udevd", "--debug", NULL };
     const char *envp[] = { NULL };
-    sched_start_program("/usr/bin/hello", argv, envp,
+    sched_start_program("/usr/sbin/udevd", argv, envp,
                         "/dev/e9", "/dev/e9", "/dev/e9");
 
     for (;;) asm ("hlt");

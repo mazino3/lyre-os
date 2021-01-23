@@ -1,7 +1,8 @@
-diff '--color=auto' -urN binutils-2.35.1/bfd/config.bfd binutils-2.35.1-patched/bfd/config.bfd
---- binutils-2.35.1/bfd/config.bfd	2020-07-24 11:12:19.000000000 +0200
-+++ binutils-2.35.1-patched/bfd/config.bfd	2020-10-13 23:55:50.161015096 +0200
-@@ -722,6 +722,11 @@
+diff --git a/ports/binutils-orig/bfd/config.bfd b/ports/binutils-workdir/bfd/config.bfd
+index 14523ca..e757576 100644
+--- a/ports/binutils-orig/bfd/config.bfd
++++ b/ports/binutils-workdir/bfd/config.bfd
+@@ -722,6 +722,11 @@ case "${targ}" in
      targ_defvec=i386_elf32_vec
      targ_selvecs="iamcu_elf32_vec i386_pe_vec i386_pei_vec"
      ;;
@@ -13,10 +14,11 @@ diff '--color=auto' -urN binutils-2.35.1/bfd/config.bfd binutils-2.35.1-patched/
    i[3-7]86-*-interix*)
      targ_defvec=i386_pei_vec
      targ_selvecs="i386_pe_vec"
-diff '--color=auto' -urN binutils-2.35.1/bfd/dwarf2.c binutils-2.35.1-patched/bfd/dwarf2.c
---- binutils-2.35.1/bfd/dwarf2.c	2020-08-25 16:36:38.000000000 +0200
-+++ binutils-2.35.1-patched/bfd/dwarf2.c	2020-10-13 23:55:50.164348429 +0200
-@@ -3404,7 +3404,7 @@
+diff --git a/ports/binutils-orig/bfd/dwarf2.c b/ports/binutils-workdir/bfd/dwarf2.c
+index b8f0008..1572a26 100644
+--- a/ports/binutils-orig/bfd/dwarf2.c
++++ b/ports/binutils-workdir/bfd/dwarf2.c
+@@ -3404,7 +3404,7 @@ scan_unit_for_symbols (struct comp_unit *unit)
        else
  	{
  	  func = NULL;
@@ -25,22 +27,24 @@ diff '--color=auto' -urN binutils-2.35.1/bfd/dwarf2.c binutils-2.35.1-patched/bf
  	    {
  	      size_t amt = sizeof (struct varinfo);
  	      var = (struct varinfo *) bfd_zalloc (abfd, amt);
-diff '--color=auto' -urN binutils-2.35.1/binutils/testsuite/gentestdlls.c binutils-2.35.1-patched/binutils/testsuite/gentestdlls.c
---- binutils-2.35.1/binutils/testsuite/gentestdlls.c	2020-07-24 11:12:19.000000000 +0200
-+++ binutils-2.35.1-patched/binutils/testsuite/gentestdlls.c	2020-10-13 23:55:50.167681762 +0200
+diff --git a/ports/binutils-orig/binutils/testsuite/gentestdlls.c b/ports/binutils-workdir/binutils/testsuite/gentestdlls.c
+index 7d19f3c..067272e 100644
+--- a/ports/binutils-orig/binutils/testsuite/gentestdlls.c
++++ b/ports/binutils-workdir/binutils/testsuite/gentestdlls.c
 @@ -25,7 +25,7 @@
     See:
     https://www.ecma-international.org/publications/files/ECMA-ST/ECMA-335.pdf  */
-
+ 
 -#include <memory.h>
 +//#include <memory.h>
  #include <stdint.h>
  #include <stdio.h>
  #include <stdlib.h>
-diff '--color=auto' -urN binutils-2.35.1/config.sub binutils-2.35.1-patched/config.sub
---- binutils-2.35.1/config.sub	2020-07-24 11:12:19.000000000 +0200
-+++ binutils-2.35.1-patched/config.sub	2020-10-13 23:55:50.164348429 +0200
-@@ -1366,7 +1366,7 @@
+diff --git a/ports/binutils-orig/config.sub b/ports/binutils-workdir/config.sub
+index f02d43a..a6bdfbd 100755
+--- a/ports/binutils-orig/config.sub
++++ b/ports/binutils-workdir/config.sub
+@@ -1366,7 +1366,7 @@ case $os in
  	     | skyos* | haiku* | rdos* | toppers* | drops* | es* \
  	     | onefs* | tirtos* | phoenix* | fuchsia* | redox* | bme* \
  	     | midnightbsd* | amdhsa* | unleashed* | emscripten* | wasi* \
@@ -49,10 +53,11 @@ diff '--color=auto' -urN binutils-2.35.1/config.sub binutils-2.35.1-patched/conf
  	# Remember, each alternative MUST END IN *, to match a version number.
  		;;
  	qnx*)
-diff '--color=auto' -urN binutils-2.35.1/gas/configure.tgt binutils-2.35.1-patched/gas/configure.tgt
---- binutils-2.35.1/gas/configure.tgt	2020-07-24 11:12:19.000000000 +0200
-+++ binutils-2.35.1-patched/gas/configure.tgt	2020-10-13 23:55:50.164348429 +0200
-@@ -218,6 +218,7 @@
+diff --git a/ports/binutils-orig/gas/configure.tgt b/ports/binutils-workdir/gas/configure.tgt
+index 3372495..52ef6ac 100644
+--- a/ports/binutils-orig/gas/configure.tgt
++++ b/ports/binutils-workdir/gas/configure.tgt
+@@ -218,6 +218,7 @@ case ${generic_target} in
    i386-*-beos*)				fmt=elf ;;
    i386-*-elfiamcu)			fmt=elf arch=iamcu ;;
    i386-*-elf*)				fmt=elf ;;
@@ -60,10 +65,11 @@ diff '--color=auto' -urN binutils-2.35.1/gas/configure.tgt binutils-2.35.1-patch
    i386-*-fuchsia*)			fmt=elf ;;
    i386-*-bsd*)				fmt=aout em=386bsd ;;
    i386-*-netbsdpe*)			fmt=coff em=pe ;;
-diff '--color=auto' -urN binutils-2.35.1/ld/configure.tgt binutils-2.35.1-patched/ld/configure.tgt
---- binutils-2.35.1/ld/configure.tgt	2020-07-24 11:12:20.000000000 +0200
-+++ binutils-2.35.1-patched/ld/configure.tgt	2020-10-13 23:55:50.167681762 +0200
-@@ -319,6 +319,10 @@
+diff --git a/ports/binutils-orig/ld/configure.tgt b/ports/binutils-workdir/ld/configure.tgt
+index 87c7d9a..5ba2de0 100644
+--- a/ports/binutils-orig/ld/configure.tgt
++++ b/ports/binutils-workdir/ld/configure.tgt
+@@ -319,6 +319,10 @@ i[3-7]86-*-bsd386)	targ_emul=i386bsd
  i[3-7]86-*-bsdi*)	targ_emul=i386bsd
  			targ_extra_ofiles=
  			;;

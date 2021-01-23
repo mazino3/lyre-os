@@ -1,7 +1,6 @@
 build-root
 build
 ports
-mlibc*
 limine
 *.o
 *.hdd

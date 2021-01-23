@@ -1,7 +1,8 @@
-diff '--color=auto' -urN gcc-10.2.0/config.sub gcc-10.2.0-patched/config.sub
---- gcc-10.2.0/config.sub	2020-07-23 08:35:16.912379792 +0200
-+++ gcc-10.2.0-patched/config.sub	2021-01-04 08:29:57.514644382 +0100
-@@ -135,7 +135,7 @@
+diff --git a/ports/gcc-orig/config.sub b/ports/gcc-workdir/config.sub
+index a318a46..b4950e0 100755
+--- a/ports/gcc-orig/config.sub
++++ b/ports/gcc-workdir/config.sub
+@@ -135,7 +135,7 @@ case $1 in
  			| linux-newlib* | linux-musl* | linux-uclibc* | uclinux-uclibc* \
  			| uclinux-gnu* | kfreebsd*-gnu* | knetbsd*-gnu* | netbsd*-gnu* \
  			| netbsd*-eabi* | kopensolaris*-gnu* | cloudabi*-eabi* \
@@ -10,7 +11,7 @@ diff '--color=auto' -urN gcc-10.2.0/config.sub gcc-10.2.0-patched/config.sub
  				basic_machine=$field1
  				os=$maybe_os
  				;;
-@@ -1366,7 +1366,7 @@
+@@ -1366,7 +1366,7 @@ case $os in
  	     | skyos* | haiku* | rdos* | toppers* | drops* | es* \
  	     | onefs* | tirtos* | phoenix* | fuchsia* | redox* | bme* \
  	     | midnightbsd* | amdhsa* | unleashed* | emscripten* | wasi* \
@@ -19,10 +20,11 @@ diff '--color=auto' -urN gcc-10.2.0/config.sub gcc-10.2.0-patched/config.sub
  	# Remember, each alternative MUST END IN *, to match a version number.
  		;;
  	qnx*)
-diff '--color=auto' -urN gcc-10.2.0/fixincludes/mkfixinc.sh gcc-10.2.0-patched/fixincludes/mkfixinc.sh
---- gcc-10.2.0/fixincludes/mkfixinc.sh	2020-07-23 08:35:16.932380013 +0200
-+++ gcc-10.2.0-patched/fixincludes/mkfixinc.sh	2021-01-04 08:29:57.514644382 +0100
-@@ -12,6 +12,7 @@
+diff --git a/ports/gcc-orig/fixincludes/mkfixinc.sh b/ports/gcc-workdir/fixincludes/mkfixinc.sh
+index df90720..484f8bc 100755
+--- a/ports/gcc-orig/fixincludes/mkfixinc.sh
++++ b/ports/gcc-workdir/fixincludes/mkfixinc.sh
+@@ -12,6 +12,7 @@ target=fixinc.sh
  # Check for special fix rules for particular targets
  case $machine in
      i?86-*-cygwin* | \
@@ -30,9 +32,11 @@ diff '--color=auto' -urN gcc-10.2.0/fixincludes/mkfixinc.sh gcc-10.2.0-patched/f
      i?86-*-mingw32* | \
      x86_64-*-mingw32* | \
      powerpc-*-eabisim* | \
-diff '--color=auto' -urN gcc-10.2.0/gcc/config/lyre.h gcc-10.2.0-patched/gcc/config/lyre.h
---- gcc-10.2.0/gcc/config/lyre.h	1970-01-01 01:00:00.000000000 +0100
-+++ gcc-10.2.0-patched/gcc/config/lyre.h	2021-01-04 08:29:57.514644382 +0100
+diff --git a/ports/gcc-workdir/gcc/config/lyre.h b/ports/gcc-workdir/gcc/config/lyre.h
+new file mode 100644
+index 0000000..7caace5
+--- /dev/null
++++ b/ports/gcc-workdir/gcc/config/lyre.h
 @@ -0,0 +1,29 @@
 +#undef TARGET_LYRE
 +#define TARGET_LYRE 1
@@ -63,10 +67,11 @@ diff '--color=auto' -urN gcc-10.2.0/gcc/config/lyre.h gcc-10.2.0-patched/gcc/con
 +    builtin_assert ("system=unix");      \
 +    builtin_assert ("system=posix");     \
 +  } while (0);
-diff '--color=auto' -urN gcc-10.2.0/gcc/config.gcc gcc-10.2.0-patched/gcc/config.gcc
---- gcc-10.2.0/gcc/config.gcc	2020-07-23 08:35:17.316384243 +0200
-+++ gcc-10.2.0-patched/gcc/config.gcc	2021-01-04 08:29:57.514644382 +0100
-@@ -773,6 +773,15 @@
+diff --git a/ports/gcc-orig/gcc/config.gcc b/ports/gcc-workdir/gcc/config.gcc
+index 6a34996..de7f3b0 100644
+--- a/ports/gcc-orig/gcc/config.gcc
++++ b/ports/gcc-workdir/gcc/config.gcc
+@@ -773,6 +773,15 @@ case ${target} in
    esac
    use_gcc_stdint=wrap
    ;;
@@ -82,7 +87,7 @@ diff '--color=auto' -urN gcc-10.2.0/gcc/config.gcc gcc-10.2.0-patched/gcc/config
  *-*-fuchsia*)
    native_system_header_dir=/include
    ;;
-@@ -2202,6 +2211,9 @@
+@@ -2202,6 +2211,9 @@ i[34567]86-*-mingw* | x86_64-*-mingw*)
  			;;
  	esac
  	;;
@@ -92,10 +97,11 @@ diff '--color=auto' -urN gcc-10.2.0/gcc/config.gcc gcc-10.2.0-patched/gcc/config
  x86_64-*-fuchsia*)
  	tmake_file="${tmake_file} i386/t-x86_64-elf"
  	tm_file="${tm_file} i386/unix.h i386/att.h elfos.h newlib-stdint.h i386/i386elf.h i386/x86-64.h fuchsia.h"
-diff '--color=auto' -urN gcc-10.2.0/libgcc/config.host gcc-10.2.0-patched/libgcc/config.host
---- gcc-10.2.0/libgcc/config.host	2020-07-23 08:35:18.752400064 +0200
-+++ gcc-10.2.0-patched/libgcc/config.host	2021-01-04 08:34:26.160551360 +0100
-@@ -103,7 +103,7 @@
+diff --git a/ports/gcc-orig/libgcc/config.host b/ports/gcc-workdir/libgcc/config.host
+index c529cc4..d1f469c 100644
+--- a/ports/gcc-orig/libgcc/config.host
++++ b/ports/gcc-workdir/libgcc/config.host
+@@ -103,7 +103,7 @@ arm*-*-*)
  	;;
  avr-*-*)
  	cpu_type=avr
@@ -104,7 +110,7 @@ diff '--color=auto' -urN gcc-10.2.0/libgcc/config.host gcc-10.2.0-patched/libgcc
  bfin*-*)
  	cpu_type=bfin
  	;;
-@@ -248,6 +248,11 @@
+@@ -248,6 +248,11 @@ case ${host} in
    tmake_file="$tmake_file t-crtstuff-pic t-libgcc-pic t-eh-dw2-dip t-slibgcc t-slibgcc-fuchsia"
    extra_parts="crtbegin.o crtend.o"
    ;;
@@ -116,7 +122,7 @@ diff '--color=auto' -urN gcc-10.2.0/libgcc/config.host gcc-10.2.0-patched/libgcc
  *-*-linux* | frv-*-*linux* | *-*-kfreebsd*-gnu | *-*-gnu* | *-*-kopensolaris*-gnu | *-*-uclinuxfdpiceabi)
    tmake_file="$tmake_file t-crtstuff-pic t-libgcc-pic t-eh-dw2-dip t-slibgcc t-slibgcc-gld t-slibgcc-elf-ver t-linux"
    extra_parts="crtbegin.o crtbeginS.o crtbeginT.o crtend.o crtendS.o"
-@@ -711,6 +716,9 @@
+@@ -711,6 +716,9 @@ x86_64-*-elf* | x86_64-*-rtems*)
  x86_64-*-fuchsia*)
  	tmake_file="$tmake_file t-libgcc-pic"
  	;;
@@ -126,7 +132,7 @@ diff '--color=auto' -urN gcc-10.2.0/libgcc/config.host gcc-10.2.0-patched/libgcc
  i[34567]86-*-dragonfly*)
  	tmake_file="${tmake_file} i386/t-dragonfly i386/t-crtstuff"
  	md_unwind_header=i386/dragonfly-unwind.h
-@@ -927,7 +935,7 @@
+@@ -927,7 +935,7 @@ lm32-*-rtems*)
  lm32-*-uclinux*)
          extra_parts="$extra_parts crtbegin.o crtendS.o crtbeginT.o"
          tmake_file="lm32/t-lm32 lm32/t-uclinux t-libgcc-pic t-softfp-sfdf t-softfp"
@@ -135,10 +141,11 @@ diff '--color=auto' -urN gcc-10.2.0/libgcc/config.host gcc-10.2.0-patched/libgcc
  m32r-*-elf*)
  	tmake_file="$tmake_file m32r/t-m32r t-fdpbit"
  	extra_parts="$extra_parts crtinit.o crtfini.o"
-diff '--color=auto' -urN gcc-10.2.0/libstdc++-v3/crossconfig.m4 gcc-10.2.0-patched/libstdc++-v3/crossconfig.m4
---- gcc-10.2.0/libstdc++-v3/crossconfig.m4	2020-07-23 08:35:19.188404867 +0200
-+++ gcc-10.2.0-patched/libstdc++-v3/crossconfig.m4	2021-01-04 08:29:57.517977717 +0100
-@@ -131,6 +131,14 @@
+diff --git a/ports/gcc-orig/libstdc++-v3/crossconfig.m4 b/ports/gcc-workdir/libstdc++-v3/crossconfig.m4
+index fe18288..51d20bc 100644
+--- a/ports/gcc-orig/libstdc++-v3/crossconfig.m4
++++ b/ports/gcc-workdir/libstdc++-v3/crossconfig.m4
+@@ -131,6 +131,14 @@ case "${host}" in
      AC_CHECK_FUNCS(sockatmark)
      ;;
  
@@ -153,10 +160,11 @@ diff '--color=auto' -urN gcc-10.2.0/libstdc++-v3/crossconfig.m4 gcc-10.2.0-patch
    *-fuchsia*)
      SECTION_FLAGS='-ffunction-sections -fdata-sections'
      AC_SUBST(SECTION_FLAGS)
-diff '--color=auto' -urN gcc-10.2.0/libtool.m4 gcc-10.2.0-patched/libtool.m4
---- gcc-10.2.0/libtool.m4	2020-07-23 08:35:19.428407511 +0200
-+++ gcc-10.2.0-patched/libtool.m4	2021-01-04 08:29:57.517977717 +0100
-@@ -2499,6 +2499,16 @@
+diff --git a/ports/gcc-orig/libtool.m4 b/ports/gcc-workdir/libtool.m4
+index e194e89..90e0fce 100644
+--- a/ports/gcc-orig/libtool.m4
++++ b/ports/gcc-workdir/libtool.m4
+@@ -2499,6 +2499,16 @@ linux* | k*bsd*-gnu | kopensolaris*-gnu | uclinuxfdpiceabi)
    dynamic_linker='GNU/Linux ld.so'
    ;;
  
@@ -173,7 +181,7 @@ diff '--color=auto' -urN gcc-10.2.0/libtool.m4 gcc-10.2.0-patched/libtool.m4
  netbsd*)
    version_type=sunos
    need_lib_prefix=no
-@@ -3098,6 +3108,10 @@
+@@ -3098,6 +3108,10 @@ linux* | k*bsd*-gnu | kopensolaris*-gnu | uclinuxfdpiceabi)
    lt_cv_deplibs_check_method=pass_all
    ;;
  

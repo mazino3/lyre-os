@@ -77,10 +77,11 @@ void main(struct stivale2_struct *stivale2_struct) {
     struct stivale2_struct_tag_smp *smp_tag =
         stivale2_get_tag(stivale2_struct, STIVALE2_STRUCT_TAG_SMP_ID);
 
+    sched_init();
+
     smp_init(smp_tag);
 
     sched_new_thread(NULL, false, main_thread, stivale2_struct, NULL, NULL, NULL);
 
-    asm ("sti");
-    for (;;) asm ("hlt");
+    sched_wait();
 }

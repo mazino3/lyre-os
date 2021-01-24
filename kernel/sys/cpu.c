@@ -172,12 +172,10 @@ static void cpu_init(struct stivale2_smp_info *smp_info) {
     print("cpu: TSC frequency fixed at %U Hz.\n", this_cpu->tsc_frequency);
 
     lapic_enable(0xff);
-    sched_init();
 
     LOCKED_INC(cpus_online);
 
     if (this_cpu->lapic_id != bsp_lapic_id) {
-        asm ("sti");
-        for (;;) asm ("hlt");
+        sched_wait();
     }
 }

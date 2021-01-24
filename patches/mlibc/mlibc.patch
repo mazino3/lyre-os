@@ -77,10 +77,10 @@ index 0000000..ee7a794
 +
 diff --git a/ports/mlibc-workdir/sysdeps/lyre/generic/generic.cpp b/ports/mlibc-workdir/sysdeps/lyre/generic/generic.cpp
 new file mode 100644
-index 0000000..f900f52
+index 0000000..d1610dd
 --- /dev/null
 +++ b/ports/mlibc-workdir/sysdeps/lyre/generic/generic.cpp
-@@ -0,0 +1,239 @@
+@@ -0,0 +1,252 @@
 +#include <bits/ensure.h>
 +#include <mlibc/debug.hpp>
 +#include <mlibc/all-sysdeps.hpp>
@@ -112,6 +112,15 @@ index 0000000..f900f52
 +                  : "rcx", "r11", "memory");                  \
 +})
 +
++#define SYSCALL4(NUM, ARG0, ARG1, ARG2, ARG3) ({               \
++    register typeof(ARG3) arg3 asm("r10") = ARG3;              \
++    asm volatile ("syscall"                                    \
++                  : "=a"(ret), "=d"(errno)                     \
++                  : "a"(NUM), "D"(ARG0), "S"(ARG1), "d"(ARG2), \
++                    "r"(arg3)                                  \
++                  : "rcx", "r11", "memory");                   \
++})
++
 +#define SYSCALL6(NUM, ARG0, ARG1, ARG2, ARG3, ARG4, ARG5) ({   \
 +    register typeof(ARG3) arg3 asm("r10") = ARG3;              \
 +    register typeof(ARG4) arg4 asm("r8")  = ARG4;              \
@@ -125,7 +134,7 @@ index 0000000..f900f52
 +
 +#define SYSCALL_DEBUGLOG    0
 +#define SYSCALL_MMAP        1
-+#define SYSCALL_OPEN        2
++#define SYSCALL_OPENAT      2
 +#define SYSCALL_READ        3
 +#define SYSCALL_WRITE       4
 +#define SYSCALL_SEEK        5
@@ -182,14 +191,18 @@ index 0000000..f900f52
 +    return ENOTTY;
 +}
 +
-+int sys_open(const char *path, int flags, int *fd) {
++int sys_openat(int dirfd, const char *path, int flags, int *fd) {
 +    int ret;
 +    int errno;
-+    SYSCALL3(SYSCALL_OPEN, path, flags, 0);
++    SYSCALL4(SYSCALL_OPENAT, dirfd, path, flags, 0);
 +    if (ret == -1)
 +        return errno;
 +    *fd = ret;
 +    return 0;
++}
++
++int sys_open(const char *path, int flags, int *fd) {
++    return sys_openat(AT_FDCWD, path, flags, fd);
 +}
 +
 +int sys_close(int fd) {

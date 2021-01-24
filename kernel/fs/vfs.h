@@ -43,7 +43,7 @@ void vfs_dump_nodes(struct vfs_node *node, const char *parent);
 void vfs_get_absolute_path(char *path_ptr, const char *path, const char *pwd);
 bool vfs_install_fs(struct filesystem *fs);
 bool vfs_mount(const char *source, const char *target, const char *fs);
-struct resource *vfs_open(const char *path, int oflags, mode_t mode);
+struct resource *vfs_open(struct vfs_node *parent, const char *path, int oflags, mode_t mode);
 struct vfs_node *vfs_mkdir(struct vfs_node *parent, const char *name, mode_t mode, bool recurse);
 bool vfs_stat(const char *path, struct stat *st);
 

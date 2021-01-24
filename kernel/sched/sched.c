@@ -20,10 +20,10 @@ static uint8_t reschedule_vector;
 
 DYNARRAY_STATIC(struct process *, processes);
 
-DYNARRAY_STATIC(struct thread *, kthreads);
-
 DYNARRAY_STATIC(struct thread *, running_queue);
 DYNARRAY_STATIC(struct thread *, idle_queue);
+
+struct process *kernel_process;
 
 void syscall_getpid(struct cpu_gpr_context *ctx) {
     ctx->rax = (uint64_t)this_cpu->current_thread->process->pid;
@@ -35,7 +35,7 @@ struct process *sched_start_program(const char *path,
                                     const char *stdin,
                                     const char *stdout,
                                     const char *stderr) {
-    struct resource *file = vfs_open(path, O_RDONLY, 0);
+    struct resource *file = vfs_open(NULL, path, O_RDONLY, 0);
     if (file == NULL)
         return NULL;
 
@@ -58,7 +58,7 @@ struct process *sched_start_program(const char *path,
     if (ld_path == NULL) {
         entry_point = (void *)auxval.at_entry;
     } else {
-        struct resource *ld = vfs_open(ld_path, O_RDONLY, 0);
+        struct resource *ld = vfs_open(NULL, ld_path, O_RDONLY, 0);
 
         struct auxval_t ld_auxval;
         if (!elf_load(new_pagemap, ld, 0x40000000, &ld_auxval, NULL))
@@ -72,9 +72,9 @@ struct process *sched_start_program(const char *path,
     }
 
     // open stdin, stdout, and stderr
-    struct resource *stdin_res  = vfs_open(stdin,  O_RDONLY, 0);
-    struct resource *stdout_res = vfs_open(stdout, O_WRONLY, 0);
-    struct resource *stderr_res = vfs_open(stderr, O_WRONLY, 0);
+    struct resource *stdin_res  = vfs_open(NULL, stdin,  O_RDONLY, 0);
+    struct resource *stdout_res = vfs_open(NULL, stdout, O_WRONLY, 0);
+    struct resource *stderr_res = vfs_open(NULL, stderr, O_WRONLY, 0);
 
     struct handle *stdin_handle  = alloc(sizeof(struct handle));
     stdin_handle->res = stdin_res;
@@ -153,12 +153,6 @@ struct process *sched_new_process(struct process *old_process, struct pagemap *p
 
     pid_t pid = DYNARRAY_INSERT(processes, new_process);
 
-    if (pid == 0) {
-        // hack to make sure process 0 is not allocated
-        processes.storage[0] = (void*)-1;
-        pid = DYNARRAY_INSERT(processes, new_process);
-    }
-
     new_process->pid = pid;
 
     LOCK_RELEASE(sched_lock);
@@ -199,12 +193,16 @@ struct thread *sched_new_thread(struct process *proc,
         void *kernel_stack = pmm_allocz(THREAD_STACK_SIZE / PAGE_SIZE);
         new_thread->kernel_stack =
                 (uintptr_t)kernel_stack + THREAD_STACK_SIZE + MEM_PHYS_OFFSET;
+
+        new_thread->process = proc;
     } else {
         // Kernel thread
         new_thread->ctx.cs = 0x08;
         new_thread->ctx.ss = 0x10;
 
         stack_bottom_vma = (uintptr_t)stack + MEM_PHYS_OFFSET;
+
+        new_thread->process = kernel_process;
     }
 
     new_thread->ctx.rsp = stack_bottom_vma + THREAD_STACK_SIZE;
@@ -269,8 +267,6 @@ struct thread *sched_new_thread(struct process *proc,
 
     new_thread->ctx.rip = (uintptr_t)addr;
 
-    new_thread->process = proc;
-
     new_thread->timeslice = 5000;
 
     SPINLOCK_ACQUIRE(sched_lock);
@@ -278,7 +274,7 @@ struct thread *sched_new_thread(struct process *proc,
     DYNARRAY_PUSHBACK(running_queue, new_thread);
 
     if (proc == NULL) {
-        new_thread->tid = DYNARRAY_INSERT(kthreads, new_thread);
+        new_thread->tid = DYNARRAY_INSERT(kernel_process->threads, new_thread);
     } else {
         new_thread->tid = DYNARRAY_INSERT(proc->threads, new_thread);
     }
@@ -370,13 +366,20 @@ void reschedule(struct cpu_gpr_context *ctx) {
 
 void _reschedule(void);
 
-void sched_init(void) {
-    static bool got_vector = false;
-    if (!got_vector) {
-        reschedule_vector = idt_get_empty_int_vector();
-        idt_register_interrupt_handler(reschedule_vector, _reschedule, 1, 0x8e);
-        got_vector = true;
-        print("sched: Scheduler interrupt vector is %x\n", reschedule_vector);
-    }
+__attribute__((noreturn))
+void sched_wait(void) {
     lapic_timer_oneshot(reschedule_vector, 20000);
+    asm ("sti");
+    for (;;) asm ("hlt");
+}
+
+void sched_init(void) {
+    reschedule_vector = idt_get_empty_int_vector();
+    idt_register_interrupt_handler(reschedule_vector, _reschedule, 1, 0x8e);
+    print("sched: Scheduler interrupt vector is %x\n", reschedule_vector);
+
+    kernel_process = alloc(sizeof(struct process));
+    kernel_process->pagemap = kernel_pagemap;
+    kernel_process->current_directory = &vfs_root_node;
+    DYNARRAY_INSERT(processes, kernel_process);
 }

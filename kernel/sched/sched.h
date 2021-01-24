@@ -36,7 +36,12 @@ struct process {
     struct vfs_node *current_directory;
 };
 
+extern struct process *kernel_process;
+
 void sched_init(void);
+
+__attribute__((noreturn))
+void sched_wait(void);
 
 struct process *sched_start_program(const char *path,
                                     const char **argv,

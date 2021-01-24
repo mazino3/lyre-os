@@ -251,7 +251,7 @@ bool vfs_mount(const char *source, const char *target, const char *fstype) {
         if (!S_ISCHR(backing_dev_node->res->st.st_mode)
          && !S_ISBLK(backing_dev_node->res->st.st_mode))
             return false;
-        struct resource *src_handle = vfs_open(source, O_RDWR, 0);
+        struct resource *src_handle = vfs_open(NULL, source, O_RDWR, 0);
         if (src_handle == NULL)
             return false;
         backing_dev_id = backing_dev_node->res->st.st_rdev;
@@ -340,12 +340,45 @@ struct vfs_node *vfs_new_node_deep(struct vfs_node *parent, const char *name) {
     return new_node;
 }
 
-void syscall_open(struct cpu_gpr_context *ctx) {
-    const char *path  = (const char *) ctx->rdi;
-    int         flags = (int)          ctx->rsi;
-    mode_t      mode  = (mode_t)       ctx->rdx;
+static struct vfs_node *get_parent_dir(int dirfd, const char *path) {
+    bool is_absolute = *path == '/';
 
-    struct resource *res = vfs_open(path, flags, mode);
+    struct process *process = this_cpu->current_thread->process;
+
+    struct vfs_node *parent;
+    if (is_absolute) {
+        parent = &vfs_root_node;
+    } else {
+        if (dirfd == AT_FDCWD) {
+            parent = process->current_directory;
+        } else {
+            struct handle *dir_handle = process->handles.storage[dirfd];
+
+            if (dir_handle->type != HANDLE_DIRECTORY) {
+                errno = ENOTDIR;
+                return NULL;
+            }
+
+            parent = dir_handle->node;
+        }
+    }
+
+    return parent;
+}
+
+void syscall_openat(struct cpu_gpr_context *ctx) {
+    int         dirfd = (int)          ctx->rdi;
+    const char *path  = (const char *) ctx->rsi;
+    int         flags = (int)          ctx->rdx;
+    mode_t      mode  = (mode_t)       ctx->r10;
+
+    struct vfs_node *parent = get_parent_dir(dirfd, path);
+    if (parent == NULL) {
+        ctx->rax = (uint64_t)-1;
+        return;
+    }
+
+    struct resource *res = vfs_open(parent, path, flags, mode);
 
     if (res == NULL) {
         ctx->rax = (uint64_t)-1;
@@ -465,27 +498,10 @@ void syscall_mkdirat(struct cpu_gpr_context *ctx) {
     const char *path  = (const char *) ctx->rsi;
     mode_t      mode  = (mode_t)       ctx->rdx;
 
-    bool is_absolute = *path == '/';
-
-    struct process *process = this_cpu->current_thread->process;
-
-    struct vfs_node *parent;
-    if (is_absolute) {
-        parent = &vfs_root_node;
-    } else {
-        if (dirfd == AT_FDCWD) {
-            parent = process->current_directory;
-        } else {
-            struct handle *dir_handle = process->handles.storage[dirfd];
-
-            if (dir_handle->type != HANDLE_DIRECTORY) {
-                errno = ENOTDIR;
-                ctx->rax = (uint64_t)-1;
-                return;
-            }
-
-            parent = dir_handle->node;
-        }
+    struct vfs_node *parent = get_parent_dir(dirfd, path);
+    if (parent == NULL) {
+        ctx->rax = (uint64_t)-1;
+        return;
     }
 
     struct vfs_node *new_dir = vfs_mkdir(parent, path, mode, false);
@@ -543,11 +559,14 @@ void syscall_seek(struct cpu_gpr_context *ctx) {
     ctx->rax = (uint64_t)base;
 }
 
-struct resource *vfs_open(const char *path, int oflags, mode_t mode) {
+struct resource *vfs_open(struct vfs_node *parent, const char *path, int oflags, mode_t mode) {
     SPINLOCK_ACQUIRE(vfs_lock);
 
+    parent = parent == NULL ? this_cpu->current_thread->process->current_directory
+           : parent;
+
     bool create = oflags & O_CREAT;
-    struct vfs_node *path_node = path2node(NULL, path, create ? CREATE_SHALLOW : NO_CREATE);
+    struct vfs_node *path_node = path2node(parent, path, create ? CREATE_SHALLOW : NO_CREATE);
     if (path_node == NULL) {
         LOCK_RELEASE(vfs_lock);
         return NULL;

@@ -45,8 +45,8 @@ syscall_table:
     dq syscall_debug_log
     extern syscall_mmap
     dq syscall_mmap
-    extern syscall_open
-    dq syscall_open
+    extern syscall_openat
+    dq syscall_openat
     extern syscall_read
     dq syscall_read
     extern syscall_write

@@ -69,6 +69,8 @@ syscall_table:
     dq syscall_socket
     extern syscall_bind
     dq syscall_bind
+    extern syscall_fork
+    dq syscall_fork
   .end:
 
 section .text
@@ -116,8 +118,8 @@ syscall_entry:
     pop rbx
     pop rcx
     pop rdx
-    pop rdi
     pop rsi
+    pop rdi
     pop rbp
     pop r8
     pop r9

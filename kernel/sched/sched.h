@@ -27,6 +27,7 @@ struct thread {
 
 struct process {
     pid_t pid;
+    pid_t ppid;
     struct pagemap *pagemap;
     DYNARRAY_STRUCT(struct thread *) threads;
     uintptr_t thread_stack_top;
@@ -44,7 +45,7 @@ struct process *sched_start_program(const char *path,
                                     const char *stdout,
                                     const char *stderr);
 
-struct process *sched_new_process(struct pagemap *pagemap);
+struct process *sched_new_process(struct process *old_process, struct pagemap *pagemap);
 
 struct thread *sched_new_thread(struct process *proc,
                                 bool want_elf,

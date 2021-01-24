@@ -43,6 +43,7 @@ extern struct pagemap *kernel_pagemap;
 void vmm_init(struct stivale2_mmap_entry *memmap, size_t memmap_entries);
 void vmm_switch_pagemap(struct pagemap *pagemap);
 struct pagemap *vmm_new_pagemap(enum paging_type paging_type);
+struct pagemap *vmm_fork_pagemap(struct pagemap *old);
 bool vmm_map_page(struct pagemap *pagemap, uintptr_t virt_addr, uintptr_t phys_addr,
                   uintptr_t flags);
 

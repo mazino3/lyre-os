@@ -37,6 +37,9 @@ set -x
 
 make -C "$LYRE_DIR" CC="x86_64-lyre-gcc"
 
+mkdir -p "$BUILD_DIR/system-root/sbin"
+x86_64-lyre-gcc init/init.c -o "$BUILD_DIR/system-root/sbin/init"
+
 if ! [ -f ./lyre.hdd ]; then
     dd if=/dev/zero bs=1M count=0 seek="$IMGSIZE" of=lyre.hdd
 

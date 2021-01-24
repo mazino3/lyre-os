@@ -56,6 +56,62 @@ void vmm_switch_pagemap(struct pagemap *pagemap) {
     );
 }
 
+static inline uintptr_t entries_to_virt_addr(size_t pml5_entry,
+                                             size_t pml4_entry,
+                                             size_t pdpt_entry,
+                                             size_t pd_entry,
+                                             size_t pt_entry) {
+    uintptr_t virt_addr = 0;
+
+    virt_addr |= pml5_entry << 48;
+    virt_addr |= pml4_entry << 39;
+    virt_addr |= pdpt_entry << 30;
+    virt_addr |= pd_entry << 21;
+    virt_addr |= pt_entry << 12;
+
+    return virt_addr;
+}
+
+struct pagemap *vmm_fork_pagemap(struct pagemap *old) {
+    struct pagemap *new = vmm_new_pagemap(PAGING_4LV);
+
+    // This is temporary
+    SPINLOCK_ACQUIRE(old->lock);
+
+    uintptr_t *pml4 = (void*)old->top_level + MEM_PHYS_OFFSET;
+    for (size_t i = 0; i < 256; i++) {
+        if (pml4[i] & 1) {
+            uintptr_t *pdpt = (uintptr_t *)((pml4[i] & 0xfffffffffffff000) + MEM_PHYS_OFFSET);
+            for (size_t j = 0; j < 512; j++) {
+                if (pdpt[j] & 1) {
+                    uintptr_t *pd = (uintptr_t *)((pdpt[j] & 0xfffffffffffff000) + MEM_PHYS_OFFSET);
+                    for (size_t k = 0; k < 512; k++) {
+                        if (pd[k] & 1) {
+                            uintptr_t *pt = (uintptr_t *)((pd[k] & 0xfffffffffffff000) + MEM_PHYS_OFFSET);
+                            for (size_t l = 0; l < 512; l++) {
+                                if (pt[l] & 1) {
+                                    uintptr_t new_page = (uintptr_t)pmm_alloc(1);
+                                    memcpy((void *)(new_page + MEM_PHYS_OFFSET),
+                                           (void *)((pt[l] & 0xfffffffffffff000) + MEM_PHYS_OFFSET),
+                                           PAGE_SIZE);
+                                    vmm_map_page(new,
+                                                 entries_to_virt_addr(0, i, j, k, l),
+                                                 new_page,
+                                                 pt[l] & 0xfff);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    LOCK_RELEASE(old->lock);
+
+    return new;
+}
+
 struct pagemap *vmm_new_pagemap(enum paging_type paging_type) {
     struct pagemap *pagemap = alloc(sizeof(struct pagemap));
     pagemap->paging_type = paging_type;

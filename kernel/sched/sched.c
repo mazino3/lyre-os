@@ -20,7 +20,8 @@ static uint8_t reschedule_vector;
 
 DYNARRAY_STATIC(struct process *, processes);
 
-DYNARRAY_STATIC(struct thread *, threads);
+DYNARRAY_STATIC(struct thread *, kthreads);
+
 DYNARRAY_STATIC(struct thread *, running_queue);
 DYNARRAY_STATIC(struct thread *, idle_queue);
 
@@ -40,7 +41,9 @@ struct process *sched_start_program(const char *path,
 
     struct pagemap *new_pagemap = vmm_new_pagemap(PAGING_4LV);
 
-    struct process *new_process = sched_new_process(new_pagemap);
+    struct process *new_process = sched_new_process(NULL, new_pagemap);
+
+    new_process->ppid = 0;
 
     struct auxval_t auxval;
     char *ld_path;
@@ -90,18 +93,63 @@ struct process *sched_start_program(const char *path,
     return new_process;
 }
 
-struct process *sched_new_process(struct pagemap *pagemap) {
+void syscall_fork(struct cpu_gpr_context *ctx) {
+    struct process *old_process = this_cpu->current_thread->process;
+
+    struct process *new_process = sched_new_process(old_process, NULL);
+
+    struct thread *new_thread = alloc(sizeof(struct thread));
+
+    new_thread->ctx = *ctx;
+    new_thread->ctx.rax = (uint64_t)0;
+
+    new_thread->process = new_process;
+
+    new_thread->timeslice = 5000;
+
+    new_thread->user_gs = this_cpu->current_thread->user_gs;
+    new_thread->user_fs = this_cpu->current_thread->user_fs;
+
+    void *kernel_stack = pmm_allocz(THREAD_STACK_SIZE / PAGE_SIZE);
+    new_thread->kernel_stack = (uintptr_t)kernel_stack + THREAD_STACK_SIZE + MEM_PHYS_OFFSET;
+
+    SPINLOCK_ACQUIRE(sched_lock);
+
+    DYNARRAY_PUSHBACK(running_queue, new_thread);
+
+    new_thread->tid = DYNARRAY_INSERT(new_process->threads, new_thread);
+
+    LOCK_RELEASE(sched_lock);
+
+    ctx->rax = (uint64_t)new_process->pid;
+}
+
+struct process *sched_new_process(struct process *old_process, struct pagemap *pagemap) {
     struct process *new_process = alloc(sizeof(struct process));
     if (new_process == NULL)
         return NULL;
 
-    new_process->pagemap = pagemap;
-    new_process->thread_stack_top = THREAD_STACK_TOP;
-    new_process->mmap_anon_non_fixed_base = MMAP_ANON_NON_FIXED_BASE;
-    new_process->current_directory = &vfs_root_node;
+    if (old_process == NULL) {
+        new_process->ppid = 0;
+
+        new_process->pagemap = pagemap;
+        new_process->thread_stack_top = THREAD_STACK_TOP;
+        new_process->mmap_anon_non_fixed_base = MMAP_ANON_NON_FIXED_BASE;
+        new_process->current_directory = &vfs_root_node;
+    } else {
+        new_process->ppid = old_process->pid;
+
+        new_process->pagemap = vmm_fork_pagemap(old_process->pagemap);
+        new_process->thread_stack_top = old_process->thread_stack_top;
+        new_process->mmap_anon_non_fixed_base = old_process->mmap_anon_non_fixed_base;
+        new_process->current_directory = old_process->current_directory;
+
+        for (size_t i = 0; i < old_process->handles.length; i++) {
+            DYNARRAY_PUSHBACK(new_process->handles, old_process->handles.storage[i]);
+        }
+    }
 
     SPINLOCK_ACQUIRE(sched_lock);
-
 
     pid_t pid = DYNARRAY_INSERT(processes, new_process);
 
@@ -227,13 +275,12 @@ struct thread *sched_new_thread(struct process *proc,
 
     SPINLOCK_ACQUIRE(sched_lock);
 
-    tid_t thread_id = DYNARRAY_INSERT(threads, new_thread);
-    new_thread->tid = thread_id;
-
     DYNARRAY_PUSHBACK(running_queue, new_thread);
 
-    if (proc != NULL) {
-        DYNARRAY_INSERT(proc->threads, new_thread);
+    if (proc == NULL) {
+        new_thread->tid = DYNARRAY_INSERT(kthreads, new_thread);
+    } else {
+        new_thread->tid = DYNARRAY_INSERT(proc->threads, new_thread);
     }
 
     LOCK_RELEASE(sched_lock);

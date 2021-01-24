@@ -4,9 +4,7 @@
 #include <stddef.h>
 #include <lib/types.h>
 #include <lib/lock.h>
-#include <fs/vfs.h>
-
-// This is the base class for all kernel handles.
+#include <socket/socket.h>
 
 struct resource {
     size_t actual_size;
@@ -20,7 +18,11 @@ struct resource {
     ssize_t (*read)(struct resource *this, void *buf, off_t loc, size_t count);
     ssize_t (*write)(struct resource *this, const void *buf, off_t loc, size_t count);
     int     (*ioctl)(struct resource *this, int request, void *argp);
+
+    int     (*bind)(struct resource *this, const struct sockaddr *addr, socklen_t addrlen);
 };
+
+struct vfs_node;
 
 struct handle {
     enum {

@@ -65,6 +65,10 @@ syscall_table:
     dq syscall_chdir
     extern syscall_mkdirat
     dq syscall_mkdirat
+    extern syscall_socket
+    dq syscall_socket
+    extern syscall_bind
+    dq syscall_bind
   .end:
 
 section .text

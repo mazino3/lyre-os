@@ -34,12 +34,21 @@ static ssize_t stub_write(struct resource *this, const void *buf, off_t loc, siz
 static int stub_ioctl(struct resource *this, int request, void *argp) {
     (void)this;
     (void)request;
+    (void)argp;
     switch (request) {
         case TCGETS: case TCSETS: case TIOCSCTTY: case TIOCGWINSZ:
             errno = ENOTTY;
             return -1;
     }
     errno = EINVAL;
+    return -1;
+}
+
+static int stub_bind(struct resource *this, const struct sockaddr *addr, socklen_t addrlen) {
+    (void)this;
+    (void)addr;
+    (void)addrlen;
+    errno = ENOTSOCK;
     return -1;
 }
 
@@ -52,6 +61,7 @@ void *resource_create(size_t actual_size) {
     new->read  = stub_read;
     new->write = stub_write;
     new->ioctl = stub_ioctl;
+    new->bind  = stub_bind;
 
     return new;
 }

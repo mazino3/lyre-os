@@ -77,10 +77,10 @@ index 0000000..ee7a794
 +
 diff --git a/ports/mlibc-workdir/sysdeps/lyre/generic/generic.cpp b/ports/mlibc-workdir/sysdeps/lyre/generic/generic.cpp
 new file mode 100644
-index 0000000..d1610dd
+index 0000000..a04d3f4
 --- /dev/null
 +++ b/ports/mlibc-workdir/sysdeps/lyre/generic/generic.cpp
-@@ -0,0 +1,252 @@
+@@ -0,0 +1,259 @@
 +#include <bits/ensure.h>
 +#include <mlibc/debug.hpp>
 +#include <mlibc/all-sysdeps.hpp>
@@ -147,6 +147,7 @@ index 0000000..d1610dd
 +#define SYSCALL_SOCKET      12
 +#define SYSCALL_BIND        13
 +#define SYSCALL_FORK        14
++#define SYSCALL_EXECVE      15
 +
 +namespace mlibc {
 +
@@ -330,6 +331,12 @@ index 0000000..d1610dd
 +        return errno;
 +    *child = ret;
 +    return 0;
++}
++
++int sys_execve(const char *path, char *const argv[], char *const envp[]) {
++    int errno, ret;
++    SYSCALL3(SYSCALL_EXECVE, path, argv, envp);
++    return errno;
 +}
 +
 +} // namespace mlibc

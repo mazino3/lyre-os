@@ -46,7 +46,7 @@ static void main_thread(struct stivale2_struct *stivale2_struct) {
 
     const char *argv[] = { "/sbin/init", NULL };
     const char *envp[] = { NULL };
-    sched_start_program("/sbin/init", argv, envp,
+    sched_start_program(false, "/sbin/init", argv, envp,
                         "/dev/e9", "/dev/e9", "/dev/e9");
 
     for (;;) asm ("hlt");
@@ -81,7 +81,8 @@ void main(struct stivale2_struct *stivale2_struct) {
 
     smp_init(smp_tag);
 
-    sched_new_thread(NULL, false, main_thread, stivale2_struct, NULL, NULL, NULL);
+    sched_new_thread(NULL, kernel_process, false, main_thread, stivale2_struct,
+                     NULL, NULL, NULL, true, NULL);
 
     sched_wait();
 }

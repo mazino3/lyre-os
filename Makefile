@@ -22,6 +22,7 @@ QEMU_FLAGS :=       \
     -d cpu_reset    \
     -no-reboot      \
     -no-shutdown    \
+    -smp 1          \
     -hda lyre.hdd   \
     -enable-kvm -cpu host,+invtsc
 

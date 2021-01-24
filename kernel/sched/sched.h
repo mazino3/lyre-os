@@ -43,7 +43,8 @@ void sched_init(void);
 __attribute__((noreturn))
 void sched_wait(void);
 
-struct process *sched_start_program(const char *path,
+struct process *sched_start_program(bool execve,
+                                    const char *path,
                                     const char **argv,
                                     const char **envp,
                                     const char *stdin,
@@ -52,12 +53,18 @@ struct process *sched_start_program(const char *path,
 
 struct process *sched_new_process(struct process *old_process, struct pagemap *pagemap);
 
-struct thread *sched_new_thread(struct process *proc,
+struct thread *sched_new_thread(struct thread *new_thread,
+                                struct process *proc,
                                 bool want_elf,
                                 void *addr,
                                 void *arg,
                                 const char **argv,
                                 const char **envp,
-                                struct auxval_t *auxval);
+                                struct auxval_t *auxval,
+                                bool start,
+                                struct pagemap *new_pagemap);
+
+__attribute__((noreturn))
+void sched_spinup(struct cpu_gpr_context *);
 
 #endif

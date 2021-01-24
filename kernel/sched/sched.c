@@ -29,7 +29,13 @@ void syscall_getpid(struct cpu_gpr_context *ctx) {
     ctx->rax = (uint64_t)this_cpu->current_thread->process->pid;
 }
 
-struct process *sched_start_program(const char *path,
+static void init_process(struct process *process) {
+    process->thread_stack_top = THREAD_STACK_TOP;
+    process->mmap_anon_non_fixed_base = MMAP_ANON_NON_FIXED_BASE;
+}
+
+struct process *sched_start_program(bool execve,
+                                    const char *path,
                                     const char **argv,
                                     const char **envp,
                                     const char *stdin,
@@ -40,10 +46,6 @@ struct process *sched_start_program(const char *path,
         return NULL;
 
     struct pagemap *new_pagemap = vmm_new_pagemap(PAGING_4LV);
-
-    struct process *new_process = sched_new_process(NULL, new_pagemap);
-
-    new_process->ppid = 0;
 
     struct auxval_t auxval;
     char *ld_path;
@@ -71,26 +73,60 @@ struct process *sched_start_program(const char *path,
         entry_point = (void *)ld_auxval.at_entry;
     }
 
-    // open stdin, stdout, and stderr
-    struct resource *stdin_res  = vfs_open(NULL, stdin,  O_RDONLY, 0);
-    struct resource *stdout_res = vfs_open(NULL, stdout, O_WRONLY, 0);
-    struct resource *stderr_res = vfs_open(NULL, stderr, O_WRONLY, 0);
+    struct process *new_process;
+    if (!execve) {
+        new_process = sched_new_process(NULL, new_pagemap);
+        new_process->ppid = this_cpu->current_thread->process->pid;
 
-    struct handle *stdin_handle  = alloc(sizeof(struct handle));
-    stdin_handle->res = stdin_res;
-    struct handle *stdout_handle = alloc(sizeof(struct handle));
-    stdout_handle->res = stdout_res;
-    struct handle *stderr_handle = alloc(sizeof(struct handle));
-    stderr_handle->res = stderr_res;
+        struct resource *stdin_res  = vfs_open(NULL, stdin,  O_RDONLY, 0);
+        struct handle *stdin_handle  = alloc(sizeof(struct handle));
+        stdin_handle->res = stdin_res;
+        DYNARRAY_INSERT(new_process->handles, stdin_handle);
 
-    DYNARRAY_INSERT(new_process->handles, stdin_handle);
-    DYNARRAY_INSERT(new_process->handles, stdout_handle);
-    DYNARRAY_INSERT(new_process->handles, stderr_handle);
+        struct resource *stdout_res = vfs_open(NULL, stdout, O_WRONLY, 0);
+        struct handle *stdout_handle = alloc(sizeof(struct handle));
+        stdout_handle->res = stdout_res;
+        DYNARRAY_INSERT(new_process->handles, stdout_handle);
 
-    sched_new_thread(new_process, true, entry_point, NULL,
-                     argv, envp, &auxval);
+        struct resource *stderr_res = vfs_open(NULL, stderr, O_WRONLY, 0);
+        struct handle *stderr_handle = alloc(sizeof(struct handle));
+        stderr_handle->res = stderr_res;
+        DYNARRAY_INSERT(new_process->handles, stderr_handle);
+
+        sched_new_thread(NULL, new_process, true, entry_point, NULL,
+                         argv, envp, &auxval, true, NULL);
+    } else {
+        struct thread  *thread  = this_cpu->current_thread;
+        struct process *process = thread->process;
+        struct pagemap *old_pagemap = process->pagemap;
+        init_process(process);
+
+        sched_new_thread(thread, process, true, entry_point, NULL,
+                         argv, envp, &auxval, false, new_pagemap);
+
+        process->pagemap = new_pagemap;
+        vmm_switch_pagemap(new_pagemap);
+        vmm_erase_pagemap(old_pagemap);
+
+        asm ("cli");
+        set_user_gs(0);
+        set_user_fs(0);
+        swapgs();
+        sched_spinup(&thread->ctx);
+    }
 
     return new_process;
+}
+
+void syscall_execve(struct cpu_gpr_context *ctx) {
+    const char *path = (const char *) ctx->rdi;
+    char      **argv = (char **)      ctx->rsi;
+    char      **envp = (char **)      ctx->rdx;
+
+    sched_start_program(true, path, argv, envp, NULL, NULL, NULL);
+
+    // If we got here, we effed up
+    ctx->rax = (uint64_t)-1;
 }
 
 void syscall_fork(struct cpu_gpr_context *ctx) {
@@ -105,7 +141,7 @@ void syscall_fork(struct cpu_gpr_context *ctx) {
 
     new_thread->process = new_process;
 
-    new_thread->timeslice = 5000;
+    new_thread->timeslice = this_cpu->current_thread->timeslice;
 
     new_thread->user_gs = this_cpu->current_thread->user_gs;
     new_thread->user_fs = this_cpu->current_thread->user_fs;
@@ -133,9 +169,9 @@ struct process *sched_new_process(struct process *old_process, struct pagemap *p
         new_process->ppid = 0;
 
         new_process->pagemap = pagemap;
-        new_process->thread_stack_top = THREAD_STACK_TOP;
-        new_process->mmap_anon_non_fixed_base = MMAP_ANON_NON_FIXED_BASE;
         new_process->current_directory = &vfs_root_node;
+
+        init_process(new_process);
     } else {
         new_process->ppid = old_process->pid;
 
@@ -160,23 +196,35 @@ struct process *sched_new_process(struct process *old_process, struct pagemap *p
     return new_process;
 }
 
-struct thread *sched_new_thread(struct process *proc,
+struct thread *sched_new_thread(struct thread *new_thread,
+                                struct process *proc,
                                 bool want_elf,
                                 void *addr,
                                 void *arg,
                                 const char **argv,
                                 const char **envp,
-                                struct auxval_t *auxval) {
-    struct thread *new_thread = alloc(sizeof(struct thread));
-    if (new_thread == NULL)
-        return NULL;
+                                struct auxval_t *auxval,
+                                bool start,
+                                struct pagemap *new_pagemap) {
+    if (new_thread == NULL) {
+        new_thread = alloc(sizeof(struct thread));
+        if (new_thread == NULL)
+            return NULL;
+    }
+
+    if (new_pagemap == NULL)
+        new_pagemap = proc->pagemap;
+
+    memset(&new_thread->ctx, 0, sizeof(struct cpu_gpr_context));
+    new_thread->user_gs = 0;
+    new_thread->user_fs = 0;
 
     new_thread->ctx.rflags = 0x202;
 
     size_t *stack = pmm_allocz(THREAD_STACK_SIZE / PAGE_SIZE);
 
     uintptr_t stack_bottom_vma;
-    if (proc != NULL) {
+    if (proc != kernel_process) {
         // User thread
         new_thread->ctx.cs = 0x23;
         new_thread->ctx.ss = 0x1b;
@@ -186,24 +234,24 @@ struct thread *sched_new_thread(struct process *proc,
         proc->thread_stack_top -= PAGE_SIZE;
 
         for (size_t i = 0; i < THREAD_STACK_SIZE; i += PAGE_SIZE) {
-            vmm_map_page(proc->pagemap, stack_bottom_vma + i,
+            vmm_map_page(new_pagemap, stack_bottom_vma + i,
                          (uintptr_t)stack + i, 0x07);
         }
 
-        void *kernel_stack = pmm_allocz(THREAD_STACK_SIZE / PAGE_SIZE);
-        new_thread->kernel_stack =
-                (uintptr_t)kernel_stack + THREAD_STACK_SIZE + MEM_PHYS_OFFSET;
-
-        new_thread->process = proc;
+        if (new_thread->kernel_stack == 0) {
+            void *kernel_stack = pmm_allocz(THREAD_STACK_SIZE / PAGE_SIZE);
+            new_thread->kernel_stack =
+                    (uintptr_t)kernel_stack + THREAD_STACK_SIZE + MEM_PHYS_OFFSET;
+        }
     } else {
         // Kernel thread
         new_thread->ctx.cs = 0x08;
         new_thread->ctx.ss = 0x10;
 
         stack_bottom_vma = (uintptr_t)stack + MEM_PHYS_OFFSET;
-
-        new_thread->process = kernel_process;
     }
+
+    new_thread->process = proc;
 
     new_thread->ctx.rsp = stack_bottom_vma + THREAD_STACK_SIZE;
 
@@ -269,17 +317,12 @@ struct thread *sched_new_thread(struct process *proc,
 
     new_thread->timeslice = 5000;
 
-    SPINLOCK_ACQUIRE(sched_lock);
-
-    DYNARRAY_PUSHBACK(running_queue, new_thread);
-
-    if (proc == NULL) {
-        new_thread->tid = DYNARRAY_INSERT(kernel_process->threads, new_thread);
-    } else {
+    if (start) {
+        SPINLOCK_ACQUIRE(sched_lock);
+        DYNARRAY_PUSHBACK(running_queue, new_thread);
         new_thread->tid = DYNARRAY_INSERT(proc->threads, new_thread);
+        LOCK_RELEASE(sched_lock);
     }
-
-    LOCK_RELEASE(sched_lock);
 
     return new_thread;
 }
@@ -304,9 +347,6 @@ static ssize_t get_next_thread(ssize_t index) {
 
     return -1;
 }
-
-__attribute__((noreturn))
-void sched_spinup(struct cpu_gpr_context *);
 
 __attribute__((noreturn))
 void reschedule(struct cpu_gpr_context *ctx) {

@@ -112,6 +112,38 @@ struct pagemap *vmm_fork_pagemap(struct pagemap *old) {
     return new;
 }
 
+bool vmm_erase_pagemap(struct pagemap *pagemap) {
+    SPINLOCK_ACQUIRE(pagemap->lock);
+
+    uintptr_t *pml4 = (void*)pagemap->top_level + MEM_PHYS_OFFSET;
+    for (size_t i = 0; i < 256; i++) {
+        if (pml4[i] & 1) {
+            uintptr_t *pdpt = (uintptr_t *)((pml4[i] & 0xfffffffffffff000) + MEM_PHYS_OFFSET);
+            for (size_t j = 0; j < 512; j++) {
+                if (pdpt[j] & 1) {
+                    uintptr_t *pd = (uintptr_t *)((pdpt[j] & 0xfffffffffffff000) + MEM_PHYS_OFFSET);
+                    for (size_t k = 0; k < 512; k++) {
+                        if (pd[k] & 1) {
+                            uintptr_t *pt = (uintptr_t *)((pd[k] & 0xfffffffffffff000) + MEM_PHYS_OFFSET);
+                            for (size_t l = 0; l < 512; l++) {
+                                if (pt[l] & 1)
+                                    pmm_free((void *)(pt[l] & 0xfffffffffffff000), 1);
+                            }
+                            pmm_free((void *)(pd[k] & 0xfffffffffffff000), 1);
+                        }
+                    }
+                    pmm_free((void *)(pdpt[j] & 0xfffffffffffff000), 1);
+                }
+            }
+            pmm_free((void *)(pml4[i] & 0xfffffffffffff000), 1);
+        }
+    }
+
+    pmm_free((void *)pagemap->top_level, 1);
+    free(pagemap);
+    return true;
+}
+
 struct pagemap *vmm_new_pagemap(enum paging_type paging_type) {
     struct pagemap *pagemap = alloc(sizeof(struct pagemap));
     pagemap->paging_type = paging_type;

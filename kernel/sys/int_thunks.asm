@@ -71,6 +71,8 @@ syscall_table:
     dq syscall_bind
     extern syscall_fork
     dq syscall_fork
+    extern syscall_execve
+    dq syscall_execve
   .end:
 
 section .text

@@ -17,6 +17,8 @@
 #include <fs/devtmpfs.h>
 #include <sched/sched.h>
 #include <misc/initramfs.h>
+#include <lib/bitmap_font.h>
+#include <dev/console.h>
 
 __attribute__((noreturn))
 static void main_thread(struct stivale2_struct *stivale2_struct) {
@@ -30,6 +32,16 @@ static void main_thread(struct stivale2_struct *stivale2_struct) {
     vfs_mount("devtmpfs", "/dev", "devtmpfs");
 
     dev_init();
+    vfs_dump_nodes(NULL, "");
+
+    struct stivale2_struct_tag_framebuffer *framebuffer_tag =
+        stivale2_get_tag(stivale2_struct, STIVALE2_STRUCT_TAG_FRAMEBUFFER_ID);
+
+    console_init((void*)framebuffer_tag->framebuffer_addr + MEM_PHYS_OFFSET,
+                 framebuffer_tag->framebuffer_width,
+                 framebuffer_tag->framebuffer_height,
+                 framebuffer_tag->framebuffer_pitch,
+                 bitmap_font, bitmap_font_width, bitmap_font_height);
     vfs_dump_nodes(NULL, "");
 
     struct stivale2_struct_tag_modules *modules_tag =
@@ -47,7 +59,7 @@ static void main_thread(struct stivale2_struct *stivale2_struct) {
     const char *argv[] = { "/sbin/init", NULL };
     const char *envp[] = { NULL };
     sched_start_program(false, "/sbin/init", argv, envp,
-                        "/dev/vga_textmode", "/dev/vga_textmode", "/dev/vga_textmode");
+                        "/dev/tty0", "/dev/tty0", "/dev/tty0");
 
     for (;;) asm ("hlt");
 }

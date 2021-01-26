@@ -124,6 +124,17 @@ void print(const char *fmt, ...) {
     LOCK_RELEASE(print_lock);
 }
 
+size_t snprint(char *buf, size_t limit, const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+
+    size_t ret = vsnprint(buf, limit, fmt, args);
+
+    va_end(args);
+
+    return ret;
+}
+
 size_t vsnprint(char *print_buf, size_t limit, const char *fmt, va_list args) {
     size_t print_buf_i = 0;
 

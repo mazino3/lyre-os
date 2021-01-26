@@ -120,7 +120,7 @@ static struct resource *tmpfs_symlink(struct vfs_node *node) {
     res->st.st_blocks   = 0;
     res->st.st_blksize  = 512;
     res->st.st_ino      = mount_data->inode_counter++;
-    res->st.st_mode     = S_IFLNK & 0777;
+    res->st.st_mode     = S_IFLNK | 0777;
     res->st.st_nlink    = 1;
 
     return (void *)res;

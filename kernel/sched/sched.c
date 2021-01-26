@@ -363,17 +363,17 @@ void reschedule(struct cpu_gpr_context *ctx) {
         current_thread->ctx = *ctx;
         current_thread->user_gs = get_user_gs();
         current_thread->user_fs = get_user_fs();
+        current_thread->user_stack = cpu_local->user_stack;
         LOCK_RELEASE(current_thread->lock);
     }
 
     ssize_t next_thread_index = get_next_thread(cpu_local->last_run_queue_index);
 
-    LOCK_RELEASE(sched_lock);
-
     cpu_local->last_run_queue_index = next_thread_index;
 
     if (next_thread_index == -1) {
         // We're idle, get a reschedule interrupt in 20 milliseconds
+        LOCK_RELEASE(sched_lock);
         lapic_eoi();
         lapic_timer_oneshot(reschedule_vector, 20000);
         cpu_local->current_thread = NULL;
@@ -387,7 +387,10 @@ void reschedule(struct cpu_gpr_context *ctx) {
     set_user_gs(current_thread->user_gs);
     set_user_fs(current_thread->user_fs);
 
+    cpu_local->user_stack   = current_thread->user_stack;
     cpu_local->kernel_stack = current_thread->kernel_stack;
+
+    LOCK_RELEASE(sched_lock);
 
     lapic_eoi();
     lapic_timer_oneshot(reschedule_vector, current_thread->timeslice);

@@ -19,6 +19,11 @@ int main(void) {
         for (;;);
     }
 
+    while (access("/run/udev/rules.d", F_OK));
+
+    printf("/run/udev/rules.d created\n");
+    fflush(stdout);
+
 
     for (;;);
 }

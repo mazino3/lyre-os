@@ -73,6 +73,8 @@ syscall_table:
     dq syscall_fork
     extern syscall_execve
     dq syscall_execve
+    extern syscall_faccessat
+    dq syscall_faccessat
   .end:
 
 section .text

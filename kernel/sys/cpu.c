@@ -30,8 +30,8 @@ void smp_init(struct stivale2_struct_tag_smp *smp_tag) {
 
     for (size_t i = 0; i < smp_tag->cpu_count; i++) {
         LOCKED_WRITE(smp_tag->smp_info[i].extra_argument, (uint64_t)&cpu_locals[i]);
-        uint64_t stack = (uintptr_t)pmm_alloc(1) + MEM_PHYS_OFFSET;
-        uint64_t sched_stack = (uintptr_t)pmm_alloc(1) + MEM_PHYS_OFFSET;
+        uint64_t stack = (uintptr_t)pmm_allocz(1) + MEM_PHYS_OFFSET;
+        uint64_t sched_stack = (uintptr_t)pmm_allocz(1) + MEM_PHYS_OFFSET;
         cpu_locals[i].tss.rsp0 = stack;
         cpu_locals[i].tss.ist1 = sched_stack;
         if (smp_tag->smp_info[i].lapic_id == bsp_lapic_id) {

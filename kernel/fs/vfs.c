@@ -476,21 +476,26 @@ void syscall_chdir(struct cpu_gpr_context *ctx) {
 
     struct process *process = this_cpu->current_thread->process;
 
+    SPINLOCK_ACQUIRE(vfs_lock);
+
     struct vfs_node *new_dir = path2node(process->current_directory, path, NO_CREATE);
 
     if (new_dir == NULL) {
         ctx->rax = (uint64_t)-1;
+        LOCK_RELEASE(vfs_lock);
         return;
     }
 
     if (!S_ISDIR(new_dir->res->st.st_mode)) {
         ctx->rax = (uint64_t)-1;
         errno = ENOTDIR;
+        LOCK_RELEASE(vfs_lock);
         return;
     }
 
     process->current_directory = new_dir;
     ctx->rax = 0;
+    LOCK_RELEASE(vfs_lock);
 }
 
 void syscall_mkdirat(struct cpu_gpr_context *ctx) {
@@ -514,6 +519,32 @@ void syscall_mkdirat(struct cpu_gpr_context *ctx) {
     ctx->rax = 0;
 }
 
+void syscall_faccessat(struct cpu_gpr_context *ctx) {
+    int         dirfd = (int)          ctx->rdi;
+    const char *path  = (const char *) ctx->rsi;
+    int         mode  = (int)          ctx->rdx;
+    int         flags = (int)          ctx->r10;
+
+    SPINLOCK_ACQUIRE(vfs_lock);
+
+    struct vfs_node *parent = get_parent_dir(dirfd, path);
+    if (parent == NULL) {
+        ctx->rax = (uint64_t)-1;
+        LOCK_RELEASE(vfs_lock);
+        return;
+    }
+
+    struct vfs_node *node = path2node(parent, path, NO_CREATE);
+    if (node == NULL) {
+        ctx->rax = (uint64_t)-1;
+        LOCK_RELEASE(vfs_lock);
+        return;
+    }
+
+    LOCK_RELEASE(vfs_lock);
+    ctx->rax = 0;
+}
+
 #define SEEK_CUR 1
 #define SEEK_END 2
 #define SEEK_SET 3
@@ -523,12 +554,15 @@ void syscall_seek(struct cpu_gpr_context *ctx) {
     off_t offset = (off_t) ctx->rsi;
     int   whence = (int)   ctx->rdx;
 
+    SPINLOCK_ACQUIRE(vfs_lock);
+
     struct process *process = this_cpu->current_thread->process;
 
     struct handle *handle = process->handles.storage[fd];
 
     if (handle->res->st.st_size == 0) {
         ctx->rax = 0;
+        LOCK_RELEASE(vfs_lock);
         return;
     }
 
@@ -546,17 +580,20 @@ void syscall_seek(struct cpu_gpr_context *ctx) {
         default:
             errno = EINVAL;
             ctx->rax = (uint64_t)-1;
+            LOCK_RELEASE(vfs_lock);
             return;
     }
 
     if (base < 0 || base >= handle->res->st.st_size) {
         errno = EINVAL;
         ctx->rax = (uint64_t)-1;
+        LOCK_RELEASE(vfs_lock);
         return;
     }
 
     handle->loc = base;
     ctx->rax = (uint64_t)base;
+    LOCK_RELEASE(vfs_lock);
 }
 
 struct resource *vfs_open(struct vfs_node *parent, const char *path, int oflags, mode_t mode) {

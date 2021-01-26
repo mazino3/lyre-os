@@ -22,6 +22,7 @@ struct thread {
     struct process *process;
     uintptr_t user_gs;
     uintptr_t user_fs;
+    uintptr_t user_stack;
     uintptr_t kernel_stack;
 };
 

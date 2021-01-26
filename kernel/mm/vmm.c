@@ -90,7 +90,7 @@ struct pagemap *vmm_fork_pagemap(struct pagemap *old) {
                             uintptr_t *pt = (uintptr_t *)((pd[k] & 0xfffffffffffff000) + MEM_PHYS_OFFSET);
                             for (size_t l = 0; l < 512; l++) {
                                 if (pt[l] & 1) {
-                                    uintptr_t new_page = (uintptr_t)pmm_alloc(1);
+                                    uintptr_t new_page = (uintptr_t)pmm_allocz(1);
                                     memcpy((void *)(new_page + MEM_PHYS_OFFSET),
                                            (void *)((pt[l] & 0xfffffffffffff000) + MEM_PHYS_OFFSET),
                                            PAGE_SIZE);
@@ -281,7 +281,7 @@ void *mmap(struct pagemap *pm, void *addr, size_t length, int prot, int flags,
         }
 
         for (uintptr_t i = 0; i < length; i += PAGE_SIZE) {
-            void *page = pmm_alloc(1);
+            void *page = pmm_allocz(1);
             vmm_map_page(process->pagemap, base + i, (uintptr_t)page,
                          PTE_PRESENT | PTE_USER |
                          (prot & PROT_WRITE ? PTE_WRITABLE : 0));

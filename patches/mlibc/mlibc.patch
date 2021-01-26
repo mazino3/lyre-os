@@ -77,10 +77,10 @@ index 0000000..ee7a794
 +
 diff --git a/ports/mlibc-workdir/sysdeps/lyre/generic/generic.cpp b/ports/mlibc-workdir/sysdeps/lyre/generic/generic.cpp
 new file mode 100644
-index 0000000..a04d3f4
+index 0000000..8502137
 --- /dev/null
 +++ b/ports/mlibc-workdir/sysdeps/lyre/generic/generic.cpp
-@@ -0,0 +1,259 @@
+@@ -0,0 +1,264 @@
 +#include <bits/ensure.h>
 +#include <mlibc/debug.hpp>
 +#include <mlibc/all-sysdeps.hpp>
@@ -148,6 +148,7 @@ index 0000000..a04d3f4
 +#define SYSCALL_BIND        13
 +#define SYSCALL_FORK        14
 +#define SYSCALL_EXECVE      15
++#define SYSCALL_FACCESSAT   16
 +
 +namespace mlibc {
 +
@@ -278,12 +279,16 @@ index 0000000..a04d3f4
 +    return 0;
 +}
 +
++int sys_faccessat(int dirfd, const char *pathname, int mode, int flags) {
++    int ret, errno;
++    SYSCALL4(SYSCALL_FACCESSAT, dirfd, pathname, mode, flags);
++    if (ret == -1)
++        return errno;
++    return 0;
++}
++
 +int sys_access(const char *path, int mode) {
-+	int fd;
-+	if(int e = sys_open(path, O_RDWR, &fd); e)
-+		return e;
-+	sys_close(fd);
-+	return 0;
++	return sys_faccessat(AT_FDCWD, path, mode, 0);
 +}
 +
 +int sys_chdir(const char *path) {

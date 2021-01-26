@@ -20,7 +20,7 @@ QEMU_FLAGS :=       \
     -net none       \
     -debugcon stdio \
     -d cpu_reset    \
-    -smp 1          \
+    -smp 5          \
     -hda lyre.hdd   \
     -enable-kvm -cpu host,+invtsc
 

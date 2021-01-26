@@ -373,10 +373,10 @@ void reschedule(struct cpu_gpr_context *ctx) {
 
     if (next_thread_index == -1) {
         // We're idle, get a reschedule interrupt in 20 milliseconds
-        LOCK_RELEASE(sched_lock);
         lapic_eoi();
         lapic_timer_oneshot(reschedule_vector, 20000);
         cpu_local->current_thread = NULL;
+        LOCK_RELEASE(sched_lock);
         asm ("sti");
         for (;;) asm ("hlt");
     }
@@ -399,10 +399,7 @@ void reschedule(struct cpu_gpr_context *ctx) {
         swapgs();
     }
 
-    if (current_thread->process != NULL)
-        vmm_switch_pagemap(current_thread->process->pagemap);
-    else
-        vmm_switch_pagemap(kernel_pagemap);
+    vmm_switch_pagemap(current_thread->process->pagemap);
 
     sched_spinup(&current_thread->ctx);
 }

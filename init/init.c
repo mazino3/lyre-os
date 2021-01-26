@@ -23,7 +23,4 @@ int main(void) {
 
     printf("/run/udev/rules.d created\n");
     fflush(stdout);
-
-
-    for (;;);
 }

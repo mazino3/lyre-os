@@ -179,7 +179,7 @@ next:;
             return cur_node;
         }
 
-        if (!S_ISDIR(cur_node->res->st.st_mode)) {
+        if (cur_node->res == NULL || !S_ISDIR(cur_node->res->st.st_mode)) {
             errno = ENOTDIR;
             return NULL;
         }

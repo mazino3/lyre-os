@@ -5,6 +5,8 @@
 #include <dev/dev.h>
 #include <mm/vmm.h>
 #include <lib/resource.h>
+#include <lib/ioctl.h>
+#include <lib/errno.h>
 
 #define VIDEO_BOTTOM ((VD_ROWS * VD_COLS) - 1)
 #define VD_COLS (80 * 2)
@@ -31,6 +33,21 @@ static ssize_t vga_textmode_write(struct resource *this, const void *buf, off_t 
     return count;
 }
 
+static int vga_textmode_ioctl(struct resource *this, int request, void *argp) {
+    switch (request) {
+        case TIOCGWINSZ: {
+            struct winsize *w = argp;
+            w->ws_row = 25;
+            w->ws_col = 80;
+            w->ws_xpixel = 720;
+            w->ws_ypixel = 400;
+            return 0;
+        }
+    }
+    errno = EINVAL;
+    return -1;
+}
+
 bool vga_textmode_init(void) {
     outb(0x3d4, 0x0a);
     outb(0x3d5, 0x20);
@@ -38,6 +55,7 @@ bool vga_textmode_init(void) {
 
     struct resource *vga_textmode = resource_create(sizeof(struct resource));
 
+    vga_textmode->ioctl = vga_textmode_ioctl;
     vga_textmode->write = vga_textmode_write;
     vga_textmode->st.st_mode = S_IFCHR | 0666;
 

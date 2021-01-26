@@ -77,10 +77,10 @@ index 0000000..ee7a794
 +
 diff --git a/ports/mlibc-workdir/sysdeps/lyre/generic/generic.cpp b/ports/mlibc-workdir/sysdeps/lyre/generic/generic.cpp
 new file mode 100644
-index 0000000..8502137
+index 0000000..4c81735
 --- /dev/null
 +++ b/ports/mlibc-workdir/sysdeps/lyre/generic/generic.cpp
-@@ -0,0 +1,264 @@
+@@ -0,0 +1,349 @@
 +#include <bits/ensure.h>
 +#include <mlibc/debug.hpp>
 +#include <mlibc/all-sysdeps.hpp>
@@ -103,6 +103,13 @@ index 0000000..8502137
 +                  : "=a"(ret), "=d"(errno)   \
 +                  : "a"(NUM), "D"(ARG0)      \
 +                  : "rcx", "r11", "memory"); \
++})
++
++#define SYSCALL2(NUM, ARG0, ARG1) ({               \
++    asm volatile ("syscall"                        \
++                  : "=a"(ret), "=d"(errno)         \
++                  : "a"(NUM), "D"(ARG0), "S"(ARG1) \
++                  : "rcx", "r11", "memory");       \
 +})
 +
 +#define SYSCALL3(NUM, ARG0, ARG1, ARG2) ({                    \
@@ -149,6 +156,9 @@ index 0000000..8502137
 +#define SYSCALL_FORK        14
 +#define SYSCALL_EXECVE      15
 +#define SYSCALL_FACCESSAT   16
++#define SYSCALL_FSTATAT     17
++#define SYSCALL_FSTAT       18
++#define SYSCALL_GETPPID     19
 +
 +namespace mlibc {
 +
@@ -265,7 +275,6 @@ index 0000000..8502137
 +}
 +
 +int sys_anon_free(void *pointer, size_t size) STUB_ONLY
-+int sys_clock_get(int clock, time_t *secs, long *nanos) STUB_ONLY
 +
 +pid_t sys_getpid() {
 +    pid_t ret;
@@ -274,8 +283,84 @@ index 0000000..8502137
 +    return ret;
 +}
 +
++pid_t sys_getppid() {
++    pid_t ret;
++    int errno;
++    SYSCALL0(SYSCALL_GETPPID);
++    return ret;
++}
++
 +uid_t sys_getuid() {
-+    mlibc::infoLogger() << "mlibc: " << __func__ << " is a stub!\n";
++    mlibc::infoLogger() << "mlibc: " << __func__ << " is a stub!\n" << frg::endlog;
++    return 0;
++}
++
++uid_t sys_geteuid() {
++    mlibc::infoLogger() << "mlibc: " << __func__ << " is a stub!\n" << frg::endlog;
++    return 0;
++}
++
++gid_t sys_getgid() {
++    mlibc::infoLogger() << "mlibc: " << __func__ << " is a stub!\n" << frg::endlog;
++    return 0;
++}
++
++gid_t sys_getegid() {
++    mlibc::infoLogger() << "mlibc: " << __func__ << " is a stub!\n" << frg::endlog;
++    return 0;
++}
++
++int sys_ttyname(int fd, char *buf, size_t size) {
++    mlibc::infoLogger() << "mlibc: " << __func__ << " is a stub!\n" << frg::endlog;
++    return ENOSYS;
++}
++
++int sys_clock_get(int clock, time_t *secs, long *nanos) {
++    mlibc::infoLogger() << "mlibc: " << __func__ << " is a stub!\n" << frg::endlog;
++    *secs  = 0;
++    *nanos = 0;
++    return 0;
++}
++
++int sys_gethostname(char *buffer, size_t bufsize) {
++    const char *hostname = "lyre";
++    for (size_t i = 0; i < bufsize; i++) {
++        buffer[i] = hostname[i];
++        if (hostname[i] == 0)
++            break;
++    }
++    mlibc::infoLogger() << "mlibc: " << __func__ << " is a stub!\n" << frg::endlog;
++    return 0;
++}
++
++int sys_stat(fsfd_target fsfdt, int fd, const char *path, int flags, struct stat *statbuf) {
++	switch (fsfdt) {
++        case fsfd_target::fd: {
++            int errno, ret;
++            SYSCALL2(SYSCALL_FSTAT, fd, statbuf);
++            if (ret == -1)
++                return errno;
++            break;
++        }
++        case fsfd_target::path: {
++            int errno, ret;
++            SYSCALL4(SYSCALL_FSTATAT, AT_FDCWD, path, statbuf, flags);
++            if (ret == -1)
++                return errno;
++            break;
++        }
++        case fsfd_target::fd_path: {
++            int errno, ret;
++            SYSCALL4(SYSCALL_FSTATAT, fd, path, statbuf, flags);
++            if (ret == -1)
++                return errno;
++            break;
++        }
++        default: {
++            __ensure(!"stat: Invalid fsfdt");
++            __builtin_unreachable();
++        }
++    }
 +    return 0;
 +}
 +

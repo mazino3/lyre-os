@@ -75,6 +75,12 @@ syscall_table:
     dq syscall_execve
     extern syscall_faccessat
     dq syscall_faccessat
+    extern syscall_fstatat
+    dq syscall_fstatat
+    extern syscall_fstat
+    dq syscall_fstat
+    extern syscall_getppid
+    dq syscall_getppid
   .end:
 
 section .text

@@ -11,7 +11,8 @@ int main(void) {
 
     int udev_pid = fork();
     if (!udev_pid) {
-        execl("/usr/sbin/udevd", "udevd", "--debug", NULL);
+        //execl("/usr/sbin/udevd", "udevd", "--debug", NULL);
+        execl("/usr/bin/bash", NULL);
         for (;;);
     }
     if (udev_pid == -1) {

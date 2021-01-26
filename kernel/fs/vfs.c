@@ -642,12 +642,45 @@ void vfs_dump_nodes(struct vfs_node *node, const char *parent) {
     }
 }
 
-bool vfs_stat(const char *path, struct stat *st) {
+void syscall_fstat(struct cpu_gpr_context *ctx) {
+    int          fd      = (int)           ctx->rdi;
+    struct stat *statbuf = (struct stat *) ctx->rsi;
+
+    struct process *process = this_cpu->current_thread->process;
+
+    struct handle *handle = process->handles.storage[fd];
+
+    *statbuf = handle->res->st;
+
+    ctx->rax = 0;
+}
+
+void syscall_fstatat(struct cpu_gpr_context *ctx) {
+    int          dirfd   = (int)           ctx->rdi;
+    const char  *path    = (const char *)  ctx->rsi;
+    struct stat *statbuf = (struct stat *) ctx->rdx;
+    int          flags   = (int)           ctx->r10;
+
+    struct vfs_node *parent = get_parent_dir(dirfd, path);
+    if (parent == NULL) {
+        ctx->rax = (uint64_t)-1;
+        return;
+    }
+
+    bool ret = vfs_stat(parent, path, statbuf, flags);
+    if (ret == false) {
+        ctx->rax = (uint64_t)-1;
+        return;
+    }
+
+    ctx->rax = 0;
+}
+
+bool vfs_stat(struct vfs_node *parent, const char *path, struct stat *st, int flags) {
     SPINLOCK_ACQUIRE(vfs_lock);
 
-    struct vfs_node *node = path2node(NULL, path, NO_CREATE);
+    struct vfs_node *node = path2node(parent, path, NO_CREATE);
     if (node == NULL) {
-        errno = ENOENT;
         LOCK_RELEASE(vfs_lock);
         return false;
     }

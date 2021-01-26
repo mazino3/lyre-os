@@ -29,6 +29,10 @@ void syscall_getpid(struct cpu_gpr_context *ctx) {
     ctx->rax = (uint64_t)this_cpu->current_thread->process->pid;
 }
 
+void syscall_getppid(struct cpu_gpr_context *ctx) {
+    ctx->rax = (uint64_t)this_cpu->current_thread->process->ppid;
+}
+
 static void init_process(struct process *process) {
     process->thread_stack_top = THREAD_STACK_TOP;
     process->mmap_anon_non_fixed_base = MMAP_ANON_NON_FIXED_BASE;

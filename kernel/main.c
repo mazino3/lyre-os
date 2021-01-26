@@ -47,7 +47,7 @@ static void main_thread(struct stivale2_struct *stivale2_struct) {
     const char *argv[] = { "/sbin/init", NULL };
     const char *envp[] = { NULL };
     sched_start_program(false, "/sbin/init", argv, envp,
-                        "/dev/e9", "/dev/vga_textmode", "/dev/vga_textmode");
+                        "/dev/vga_textmode", "/dev/vga_textmode", "/dev/vga_textmode");
 
     for (;;) asm ("hlt");
 }

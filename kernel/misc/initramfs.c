@@ -8,6 +8,7 @@
 #include <fs/vfs.h>
 #include <lib/builtins.h>
 #include <lib/math.h>
+#include <lib/alloc.h>
 
 struct ustar_header {
     char name[100];
@@ -83,6 +84,10 @@ bool initramfs_init(struct stivale2_struct_tag_modules *modules_tag) {
                 void *buf = (void*)h + 512;
                 r->write(r, buf, 0, size);
                 r->close(r);
+                break;
+            }
+            case USTAR_SYM_LINK: {
+                vfs_symlink(NULL, h->link_name, h->name);
                 break;
             }
         }

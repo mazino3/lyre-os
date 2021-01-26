@@ -18,6 +18,7 @@ struct filesystem {
     struct vfs_node *(*mount)(struct resource *device);
     struct vfs_node *(*populate)(struct vfs_node *node);
     struct resource *(*open)(struct vfs_node *node, bool new_node, mode_t mode);
+    struct resource *(*symlink)(struct vfs_node *node);
     struct resource *(*mkdir)(struct vfs_node *node, mode_t mode);
 };
 
@@ -25,6 +26,7 @@ struct filesystem {
 
 struct vfs_node {
     char name[NAME_MAX];
+    char target[NAME_MAX];
     struct resource *res;
     void *mount_data;
     dev_t backing_dev_id;
@@ -44,6 +46,7 @@ void vfs_get_absolute_path(char *path_ptr, const char *path, const char *pwd);
 bool vfs_install_fs(struct filesystem *fs);
 bool vfs_mount(const char *source, const char *target, const char *fs);
 struct resource *vfs_open(struct vfs_node *parent, const char *path, int oflags, mode_t mode);
+bool vfs_symlink(struct vfs_node *parent, const char *target, const char *path);
 struct vfs_node *vfs_mkdir(struct vfs_node *parent, const char *name, mode_t mode, bool recurse);
 bool vfs_stat(struct vfs_node *parent, const char *path, struct stat *st, int flags);
 

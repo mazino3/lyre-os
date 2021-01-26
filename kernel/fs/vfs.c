@@ -107,13 +107,13 @@ struct vfs_node vfs_root_node = {
     .backing_dev_id = 0
 };
 
-enum {
-    NO_CREATE = 0,
-    CREATE_SHALLOW,
-    CREATE_DEEP
-};
+#define NO_CREATE      0b0000
+#define CREATE_SHALLOW 0b0001
+#define CREATE_DEEP    0b0010
+#define NO_DEREF_LINKS 0b0100
+#define FAIL_IF_EXISTS 0b1000
 
-static struct vfs_node *path2node(struct vfs_node *parent, const char *_path, int create) {
+static struct vfs_node *path2node(struct vfs_node *parent, const char *_path, int flags) {
     bool last = false;
 
     if (_path == NULL)
@@ -176,6 +176,20 @@ next:;
         }
 
         if (last) {
+            if (flags & FAIL_IF_EXISTS) {
+                errno = EEXIST;
+                return NULL;
+            }
+
+            if (cur_node->res != NULL && S_ISLNK(cur_node->res->st.st_mode)) {
+                if (flags & NO_DEREF_LINKS) {
+                    errno = ELOOP;
+                    return NULL;
+                }
+
+                return path2node(cur_node->parent, cur_node->target, flags);
+            }
+
             return cur_node;
         }
 
@@ -201,11 +215,11 @@ next:;
     }
 
 epilogue:
-    if (create) {
+    if (flags & (CREATE_SHALLOW | CREATE_DEEP)) {
         if (last) {
             return vfs_new_node(cur_parent, elem);
         } else {
-            if (create == CREATE_SHALLOW)
+            if (!(flags & CREATE_DEEP))
                 return NULL;
             cur_parent = vfs_mkdir(cur_parent, elem, 0755, false);
             goto next;
@@ -626,6 +640,26 @@ struct resource *vfs_open(struct vfs_node *parent, const char *path, int oflags,
     LOCK_RELEASE(vfs_lock);
 
     return res;
+}
+
+bool vfs_symlink(struct vfs_node *parent, const char *target, const char *path) {
+    SPINLOCK_ACQUIRE(vfs_lock);
+
+    struct vfs_node *path_node = path2node(parent, path,
+                                           FAIL_IF_EXISTS | CREATE_SHALLOW);
+
+    if (path_node == NULL) {
+        LOCK_RELEASE(vfs_lock);
+        return false;
+    }
+
+    strcpy(path_node->target, target);
+
+    path_node->res = path_node->fs->symlink(path_node);
+
+    LOCK_RELEASE(vfs_lock);
+
+    return true;
 }
 
 void vfs_dump_nodes(struct vfs_node *node, const char *parent) {

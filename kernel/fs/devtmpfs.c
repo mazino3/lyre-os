@@ -126,6 +126,20 @@ static struct resource *devtmpfs_open(struct vfs_node *node, bool create, mode_t
     return (void *)res;
 }
 
+static struct resource *devtmpfs_symlink(struct vfs_node *node) {
+    struct tmpfs_resource *res = resource_create(sizeof(struct tmpfs_resource));
+
+    res->st.st_dev      = node->backing_dev_id;
+    res->st.st_size     = strlen(node->target);
+    res->st.st_blocks   = 0;
+    res->st.st_blksize  = 512;
+    res->st.st_ino      = inode_counter++;
+    res->st.st_mode     = S_IFLNK & 0777;
+    res->st.st_nlink    = 1;
+
+    return (void *)res;
+}
+
 static struct resource *devtmpfs_mkdir(struct vfs_node *node, mode_t mode) {
     struct resource *res = resource_create(sizeof(struct resource));
 
@@ -150,6 +164,7 @@ struct filesystem devtmpfs = {
     .needs_backing_device = BACKING_DEV_NO_NOGEN,
     .mount    = devtmpfs_mount,
     .open     = devtmpfs_open,
+    .symlink  = devtmpfs_symlink,
     .mkdir    = devtmpfs_mkdir,
     .populate = devtmpfs_populate
 };

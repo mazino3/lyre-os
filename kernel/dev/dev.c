@@ -4,6 +4,7 @@
 #include <dev/e9.h>
 #include <fs/devtmpfs.h>
 #include <lib/lock.h>
+#include <dev/drm/drm.h>
 
 static dev_t device_id_counter = 1;
 
@@ -21,5 +22,6 @@ bool dev_add_new(struct resource *device, const char *dev_name) {
 
 bool dev_init(void) {
     e9_init();
+    init_drm();
     return true;
 }

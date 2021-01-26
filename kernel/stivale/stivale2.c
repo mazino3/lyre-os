@@ -28,7 +28,7 @@ static struct stivale2_header stivale_hdr = {
     .entry_point = 0,
     .stack = (uintptr_t)initial_stack + sizeof(initial_stack),
     .flags = 0,
-    .tags = (uintptr_t)&framebuffer_hdr_tag
+    .tags = (uintptr_t)&smp_hdr_tag/*framebuffer_hdr_tag*/
 };
 
 void *stivale2_get_tag(struct stivale2_struct *stivale2_struct, uint64_t id) {

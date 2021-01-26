@@ -1,6 +1,8 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <dev/dev.h>
+#include <dev/e9.h>
+#include <dev/vga_textmode.h>
 #include <fs/devtmpfs.h>
 #include <lib/lock.h>
 
@@ -20,5 +22,6 @@ bool dev_add_new(struct resource *device, const char *dev_name) {
 
 bool dev_init(void) {
     e9_init();
+    vga_textmode_init();
     return true;
 }

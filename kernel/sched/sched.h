@@ -68,4 +68,7 @@ struct thread *sched_new_thread(struct thread *new_thread,
 __attribute__((noreturn))
 void sched_spinup(struct cpu_gpr_context *);
 
+void dequeue_and_yield(void);
+void yield(void);
+
 #endif

@@ -61,7 +61,7 @@ static void main_thread(struct stivale2_struct *stivale2_struct) {
     sched_start_program(false, "/sbin/init", argv, envp,
                         "/dev/tty0", "/dev/tty0", "/dev/tty0");
 
-    for (;;) asm ("hlt");
+    dequeue_and_yield();
 }
 
 __attribute__((noreturn))

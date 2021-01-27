@@ -12,7 +12,7 @@
 // Based on managarm's stage2
 
 int main(void) {
-#if 1
+#if 0
     int card = open("/dev/dri/card0", O_RDWR | O_CLOEXEC);
     printf("opened dri device");
 
@@ -25,7 +25,7 @@ int main(void) {
         return -1;
     }
 
-    
+
     printf("dumb buffers supported\n");
 
     fflush(stdout);

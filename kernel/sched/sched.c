@@ -331,6 +331,24 @@ struct thread *sched_new_thread(struct thread *new_thread,
     return new_thread;
 }
 
+void dequeue_and_yield(void) {
+    SPINLOCK_ACQUIRE(sched_lock);
+
+    struct thread *thread = this_cpu->current_thread;
+
+    ssize_t index = DYNARRAY_GET_INDEX_BY_VALUE(running_queue, thread);
+
+    DYNARRAY_REMOVE_AND_PACK(running_queue, index);
+
+    LOCK_RELEASE(thread->lock);
+
+    asm ("cli");
+
+    LOCK_RELEASE(sched_lock);
+
+    yield();
+}
+
 static ssize_t get_next_thread(ssize_t index) {
     if (index == -1) {
         index = 0;
@@ -354,14 +372,22 @@ static ssize_t get_next_thread(ssize_t index) {
 
 __attribute__((noreturn))
 void reschedule(struct cpu_gpr_context *ctx) {
-    SPINLOCK_ACQUIRE(sched_lock);
-
     if (ctx->cs & 0x03) {
         swapgs();
     }
 
     struct cpu_local *cpu_local      = this_cpu;
     struct thread    *current_thread = cpu_local->current_thread;
+
+    if (!LOCK_ACQUIRE(sched_lock)) {
+        int slice = current_thread != NULL ? current_thread->timeslice : 20000;
+        lapic_eoi();
+        lapic_timer_oneshot(reschedule_vector, slice);
+        if (ctx->cs & 0x03) {
+            swapgs();
+        }
+        return;
+    }
 
     if (current_thread != NULL) {
         current_thread->ctx = *ctx;

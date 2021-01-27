@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <lib/alloc.h>
 #include <lib/builtins.h>
+#include <lib/types.h>
 
 #define DYNARRAY_STRUCT(TYPE) \
     struct {                  \
@@ -67,9 +68,20 @@
     i;                                     \
 })
 
+#define DYNARRAY_GET_INDEX_BY_VALUE(THIS, VALUE) ({ \
+    ssize_t i;                                      \
+    for (i = 0; i < (THIS).length; i++) {           \
+        if ((THIS).storage[i] == (VALUE))           \
+            break;                                  \
+    }                                               \
+    if (i == (THIS).length)                         \
+        i = -1;                                     \
+    i;                                              \
+})
+
 #define DYNARRAY_REMOVE_AND_PACK(THIS, INDEX) ({           \
     for (size_t i = (INDEX) + 1; i < (THIS).length; i++) { \
-        (THIS).storage[i] = (THIS).storage[i-1];           \
+        (THIS).storage[i-1] = (THIS).storage[i];           \
     }                                                      \
     --(THIS).length;                                       \
 })

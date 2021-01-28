@@ -61,7 +61,9 @@ static void main_thread(struct stivale2_struct *stivale2_struct) {
     sched_start_program(false, "/sbin/init", argv, envp,
                         "/dev/tty0", "/dev/tty0", "/dev/tty0");
 
-    dequeue_and_yield();
+    dequeue_and_yield(NULL);
+
+    for (;;);
 }
 
 __attribute__((noreturn))
@@ -69,13 +71,13 @@ void main(struct stivale2_struct *stivale2_struct) {
     stivale2_struct = (void *)stivale2_struct + MEM_PHYS_OFFSET;
 
     gdt_init();
-    idt_init();
 
     struct stivale2_struct_tag_memmap *memmap_tag =
         stivale2_get_tag(stivale2_struct, STIVALE2_STRUCT_TAG_MEMMAP_ID);
 
     pmm_init((void *)memmap_tag->memmap, memmap_tag->entries);
     vmm_init((void *)memmap_tag->memmap, memmap_tag->entries);
+    idt_init();
     dmesg_enable();
     print("Lyre says hello world!\n");
 

@@ -50,15 +50,15 @@ void lapic_send_ipi(uint8_t lapic_id, uint8_t vector) {
 }
 
 static uint32_t io_apic_read(size_t io_apic_num, uint32_t reg) {
-    uint8_t *base = (uint8_t *)(uintptr_t)madt_io_apics.storage[io_apic_num]->addr + MEM_PHYS_OFFSET;
-    mmoutd(base, reg);
-    return mmind(base + 4);
+    volatile uint32_t *base = (volatile uint32_t *)((size_t)madt_io_apics.storage[io_apic_num]->addr + MEM_PHYS_OFFSET);
+    *base = reg;
+    return *(base + 4);
 }
 
 static void io_apic_write(size_t io_apic_num, uint32_t reg, uint32_t data) {
-    uint8_t *base = (uint8_t *)(uintptr_t)madt_io_apics.storage[io_apic_num]->addr + MEM_PHYS_OFFSET;
-    mmoutd(base, reg);
-    mmoutd(base + 4, data);
+    volatile uint32_t *base = (volatile uint32_t *)((size_t)madt_io_apics.storage[io_apic_num]->addr + MEM_PHYS_OFFSET);
+    *base = reg;
+    *(base + 4) = data;
 }
 
 // Get the maximum number of redirects this I/O APIC can handle

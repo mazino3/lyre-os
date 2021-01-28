@@ -11,6 +11,9 @@
 #include <lib/termios.h>
 #include <lib/print.h>
 #include <lib/ioctl.h>
+#include <sched/sched.h>
+#include <sys/idt.h>
+#include <sys/port_io.h>
 
 // Tries to implement this standard for terminfo
 // http://man7.org/linux/man-pages/man4/console_codes.4.html
@@ -493,6 +496,24 @@ static ssize_t tty_write(struct resource *this, const void *void_buf, off_t loc,
     return count;
 }
 
+static void keyboard_handler(void *p) {
+    (void)p;
+    int vect = idt_get_empty_int_vector();
+
+    print("console: PS/2 keyboard vector is %x\n", vect);
+
+    io_apic_set_irq_redirect(0, vect, 1, true);
+
+    for (;;) {
+        int ret;
+        events_await((struct event *[]){int_event[vect]}, &ret, 1);
+
+        print("boop\n");
+
+        uint8_t input = inb(0x60);
+    }
+}
+
 bool console_init(uint32_t *_fb,
                   int _fb_width,
                   int _fb_height,
@@ -561,6 +582,9 @@ bool console_init(uint32_t *_fb,
     }
 
     current_tty = ttys[0];
+
+    sched_new_thread(NULL, kernel_process, false, keyboard_handler, NULL,
+                     NULL, NULL, NULL, true, NULL);
 
     return true;
 }

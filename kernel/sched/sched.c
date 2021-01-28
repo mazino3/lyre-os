@@ -21,7 +21,6 @@ static uint8_t reschedule_vector;
 DYNARRAY_STATIC(struct process *, processes);
 
 DYNARRAY_STATIC(struct thread *, running_queue);
-DYNARRAY_STATIC(struct thread *, idle_queue);
 
 struct process *kernel_process;
 
@@ -331,7 +330,7 @@ struct thread *sched_new_thread(struct thread *new_thread,
     return new_thread;
 }
 
-void dequeue_and_yield(void) {
+void dequeue_and_yield(lock_t *lock) {
     SPINLOCK_ACQUIRE(sched_lock);
 
     struct thread *thread = this_cpu->current_thread;
@@ -346,7 +345,29 @@ void dequeue_and_yield(void) {
 
     LOCK_RELEASE(sched_lock);
 
+    if (lock != NULL && !LOCK_ACQUIRE(*lock)) {
+        asm ("sti");
+        return;
+    }
+
     yield();
+}
+
+bool sched_queue_back(struct thread *thread) {
+    SPINLOCK_ACQUIRE(sched_lock);
+
+    ssize_t index = DYNARRAY_GET_INDEX_BY_VALUE(running_queue, thread);
+
+    if (index != -1) {
+        LOCK_RELEASE(sched_lock);
+        return false;
+    }
+
+    DYNARRAY_PUSHBACK(running_queue, thread);
+
+    LOCK_RELEASE(sched_lock);
+
+    return true;
 }
 
 static ssize_t get_next_thread(ssize_t index) {
@@ -370,7 +391,6 @@ static ssize_t get_next_thread(ssize_t index) {
     return -1;
 }
 
-__attribute__((noreturn))
 void reschedule(struct cpu_gpr_context *ctx) {
     if (ctx->cs & 0x03) {
         swapgs();

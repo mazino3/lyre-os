@@ -1,19 +1,33 @@
-; Interrupt thunks
+section .text
 
-section .bss
-global int_event
-align 16
-int_event: resq 256
+extern idt_raise_int_event
 
 %macro raise_int 1
 align 16
 raise_int_%1:
-jmp $
-    lock inc dword [int_event+%1*8]
+    cld
+    push rax
+    push rcx
+    push rdx
+    push rsi
+    push rdi
+    push r8
+    push r9
+    push r10
+    push r11
+    mov rdi, %1
+    call idt_raise_int_event
+    pop r11
+    pop r10
+    pop r9
+    pop r8
+    pop rdi
+    pop rsi
+    pop rdx
+    pop rcx
+    pop rax
     iretq
 %endmacro
-
-section .text
 
 %assign i 0
 %rep 256

@@ -2,12 +2,14 @@
 #include <stdint.h>
 #include <sys/idt.h>
 #include <lib/lock.h>
+#include <lib/event.h>
+#include <sys/apic.h>
 
 static lock_t idt_lock;
 static int free_int_vect_base = 0x80;
 static const int free_int_vect_limit = 0xa0;
 
-int idt_get_empty_int_vector() {
+int idt_get_empty_int_vector(void) {
     SPINLOCK_ACQUIRE(idt_lock);
 
     int ret;
@@ -50,12 +52,21 @@ void idt_register_interrupt_handler(size_t vec, void *handler, uint8_t ist, uint
     idt[vec].zero = 0;
 }
 
-void idt_init() {
+struct event *int_event[256];
+
+void idt_raise_int_event(size_t i) {
+    event_trigger(int_event[i], 1);
+    lapic_eoi();
+}
+
+void idt_init(void) {
     SPINLOCK_ACQUIRE(idt_lock);
 
     /* Register all interrupts to thunks */
-    for (size_t i = 0; i < 256; i++)
+    for (size_t i = 0; i < 256; i++) {
+        int_event[i] = event_create(16);
         idt_register_interrupt_handler(i, int_thunks[i], 0, 0x8e);
+    }
 
     idt_reload();
 

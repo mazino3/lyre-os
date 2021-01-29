@@ -67,7 +67,7 @@ void *resource_create(size_t actual_size) {
     return new;
 }
 
-int fd_create(struct resource *res, int flags) {
+int fd_create_from_resource(struct resource *res, int flags, int oldfd) {
     struct handle *handle = alloc(sizeof(struct handle));
 
     handle->res = res;
@@ -79,9 +79,18 @@ int fd_create(struct resource *res, int flags) {
     fd->handle = handle;
     fd->flags = flags & FILE_DESCRIPTOR_FLAGS_MASK;
 
+    return fd_create(fd, oldfd);
+}
+
+int fd_create(struct file_descriptor *fd, int oldfd) {
     struct process *process = this_cpu->current_thread->process;
 
-    return DYNARRAY_INSERT(process->fds, fd);
+    if (oldfd == -1) {
+        return DYNARRAY_INSERT(process->fds, fd);
+    } else {
+        fd_close(oldfd);
+        return DYNARRAY_INSERT_AT(process->fds, fd, oldfd);
+    }
 }
 
 struct file_descriptor *fd_from_fd(int fildes) {
@@ -105,4 +114,24 @@ struct resource *resource_from_fd(int fildes) {
     if (handle == NULL)
         return NULL;
     return handle->res;
+}
+
+int fd_close(int fildes) {
+    struct file_descriptor *fd = fd_from_fd(fildes);
+    if (fd == NULL)
+        return false;
+
+    struct handle *handle = fd->handle;
+    struct resource *res = handle->res;
+
+    int ret = res->close(res);
+    if (ret == -1)
+        return false;
+
+    if (--handle->refcount == 0)
+        free(handle);
+
+    free(fd);
+
+    this_cpu->current_thread->process->fds.storage[fildes] = NULL;
 }

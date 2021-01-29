@@ -68,6 +68,20 @@
     i;                                     \
 })
 
+#define DYNARRAY_INSERT_AT(THIS, ITEM, AT) ({         \
+    if ((AT) >= (THIS).storage_size) {                \
+        (THIS).storage_size = (AT) + 1;               \
+        (THIS).storage =                              \
+            realloc((THIS).storage,                   \
+                    (THIS).storage_size               \
+                  * sizeof(typeof(*(THIS).storage))); \
+    }                                                 \
+    (THIS).storage[(AT)] = (ITEM);                    \
+    if ((AT) >= (THIS).length)                        \
+        (THIS).length = (AT) + 1;                     \
+    (AT);                                             \
+})
+
 #define DYNARRAY_GET_INDEX_BY_VALUE(THIS, VALUE) ({ \
     ssize_t i;                                      \
     for (i = 0; i < (THIS).length; i++) {           \

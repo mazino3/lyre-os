@@ -97,6 +97,8 @@ syscall_table:
     dq syscall_getppid
     extern syscall_fcntl
     dq syscall_fcntl
+    extern syscall_dup3
+    dq syscall_dup3
   .end:
 
 section .rodata

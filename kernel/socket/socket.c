@@ -35,7 +35,7 @@ void syscall_socket(struct cpu_gpr_context *ctx) {
         return;
     }
 
-    int ret = fd_create(new_socket, 0);
+    int ret = fd_create_from_resource(new_socket, 0, -1);
 
     ctx->rax = (uint64_t)ret;
 }

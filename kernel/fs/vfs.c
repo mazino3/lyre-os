@@ -440,6 +440,32 @@ void syscall_fcntl(struct cpu_gpr_context *ctx) {
     }
 }
 
+void syscall_dup3(struct cpu_gpr_context *ctx) {
+    int oldfd = (int) ctx->rdi;
+    int newfd = (int) ctx->rsi;
+    int flags = (int) ctx->rdx;
+
+    if (oldfd == newfd) {
+        errno = EINVAL;
+        ctx->rax = (uint64_t)-1;
+        return;
+    }
+
+    struct file_descriptor *old_fd = fd_from_fd(oldfd);
+    if (old_fd == NULL) {
+        ctx->rax = (uint64_t)-1;
+        return;
+    }
+
+    struct file_descriptor *new_fd = alloc(sizeof(struct file_descriptor));
+    *new_fd = *old_fd;
+    fd_create(new_fd, newfd);
+
+    new_fd->flags = flags & FILE_DESCRIPTOR_FLAGS_MASK;
+
+    ctx->rax = (uint64_t)0;
+}
+
 void syscall_openat(struct cpu_gpr_context *ctx) {
     int         dirfd = (int)          ctx->rdi;
     const char *path  = (const char *) ctx->rsi;
@@ -461,7 +487,7 @@ void syscall_openat(struct cpu_gpr_context *ctx) {
         return;
     }
 
-    int ret = fd_create(res, flags);
+    int ret = fd_create_from_resource(res, flags, -1);
 
     ctx->rax = (uint64_t)ret;
 }
@@ -469,18 +495,9 @@ void syscall_openat(struct cpu_gpr_context *ctx) {
 void syscall_close(struct cpu_gpr_context *ctx) {
     int fildes = (int)ctx->rdi;
 
-    struct file_descriptor *fd = fd_from_fd(fildes);
-    struct handle *handle = fd->handle;
-    struct resource *res = handle->res;
+    int ret = fd_close(fildes);
 
-    ctx->rax = (uint64_t)res->close(res);
-
-    if (--handle->refcount == 0)
-        free(handle);
-
-    free(fd);
-
-    this_cpu->current_thread->process->fds.storage[fildes] = NULL;
+    ctx->rax = (uint64_t)ret;
 }
 
 void syscall_read(struct cpu_gpr_context *ctx) {

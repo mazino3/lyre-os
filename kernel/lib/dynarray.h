@@ -82,6 +82,26 @@
     (AT);                                             \
 })
 
+#define DYNARRAY_INSERT_LEAST(THIS, ITEM, AT) ({ \
+    bool found = false;                          \
+    size_t i;                                    \
+    if ((AT) >= (THIS).length) {                 \
+        i = DYNARRAY_INSERT_AT(THIS, ITEM, AT);  \
+    } else {                                     \
+        for (i = (AT); i < (THIS).length; i++) { \
+            if ((THIS).storage[i] == NULL) {     \
+                (THIS).storage[i] = ITEM;        \
+                found = true;                    \
+                break;                           \
+            }                                    \
+        }                                        \
+        if (found == false) {                    \
+            i = DYNARRAY_PUSHBACK(THIS, ITEM);   \
+        }                                        \
+    }                                            \
+    i;                                           \
+})
+
 #define DYNARRAY_GET_INDEX_BY_VALUE(THIS, VALUE) ({ \
     ssize_t i;                                      \
     for (i = 0; i < (THIS).length; i++) {           \

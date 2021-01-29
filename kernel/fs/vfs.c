@@ -405,6 +405,17 @@ static struct vfs_node *get_parent_dir(int dirfd, const char *path) {
 // constants for fcntl()'s additional argument of F_GETFD and F_SETFD
 #define FD_CLOEXEC 1
 
+static int dup(int oldfd, int least) {
+    struct file_descriptor *old_fd = fd_from_fd(oldfd);
+    if (old_fd == NULL) {
+        return -1;
+    }
+
+    struct file_descriptor *new_fd = alloc(sizeof(struct file_descriptor));
+    *new_fd = *old_fd;
+    return fd_create_least(new_fd, least);
+}
+
 void syscall_fcntl(struct cpu_gpr_context *ctx) {
     int fildes = (int) ctx->rdi;
     int cmd    = (int) ctx->rsi;
@@ -418,11 +429,14 @@ void syscall_fcntl(struct cpu_gpr_context *ctx) {
     struct handle *handle = fd->handle;
 
     switch (cmd) {
+        case F_DUPFD:
+            ctx->rax = (uint64_t)dup(fildes, (int)ctx->rdx);
+            return;
         case F_GETFD:
-            ctx->rax = (uint64_t)fd->flags;
+            ctx->rax = (uint64_t)((fd->flags & O_CLOEXEC) ? FD_CLOEXEC : 0);
             return;
         case F_SETFD:
-            fd->flags = (int)ctx->rdx;
+            fd->flags = (int)((ctx->rdx & FD_CLOEXEC) ? O_CLOEXEC : 0);
             ctx->rax = (uint64_t)0;
             return;
         case F_GETFL:

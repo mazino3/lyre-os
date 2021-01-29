@@ -73,6 +73,7 @@ int fd_create_from_resource(struct resource *res, int flags, int oldfd) {
     handle->res = res;
     handle->loc = 0;
     handle->flags = flags & FILE_STATUS_FLAGS_MASK;
+    handle->refcount = 1;
 
     struct file_descriptor *fd = alloc(sizeof(struct file_descriptor));
 
@@ -91,6 +92,12 @@ int fd_create(struct file_descriptor *fd, int oldfd) {
         fd_close(oldfd);
         return DYNARRAY_INSERT_AT(process->fds, fd, oldfd);
     }
+}
+
+int fd_create_least(struct file_descriptor *fd, int oldfd) {
+    struct process *process = this_cpu->current_thread->process;
+
+    return DYNARRAY_INSERT_LEAST(process->fds, fd, oldfd);
 }
 
 struct file_descriptor *fd_from_fd(int fildes) {

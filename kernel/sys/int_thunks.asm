@@ -95,7 +95,14 @@ syscall_table:
     dq syscall_fstat
     extern syscall_getppid
     dq syscall_getppid
+    extern syscall_fcntl
+    dq syscall_fcntl
   .end:
+
+section .rodata
+
+lmao: db 0x0a, "syscall %d", 0x0a, 0
+extern print
 
 section .text
 
@@ -133,6 +140,14 @@ syscall_entry:
     push rcx
     push rbx
     push rax
+
+%if 0
+    mov rdi, lmao
+    mov rsi, rax
+    push rax
+    call print
+    pop rax
+%endif
 
     mov rdi, rsp
 

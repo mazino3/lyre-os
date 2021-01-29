@@ -366,7 +366,9 @@ static struct vfs_node *get_parent_dir(int dirfd, const char *path) {
         if (dirfd == AT_FDCWD) {
             parent = process->current_directory;
         } else {
-            struct handle *dir_handle = process->handles.storage[dirfd];
+            struct handle *dir_handle = handle_from_fd(dirfd);
+            if (dir_handle == NULL)
+                return NULL;
 
             if (dir_handle->type != HANDLE_DIRECTORY) {
                 errno = ENOTDIR;
@@ -378,6 +380,64 @@ static struct vfs_node *get_parent_dir(int dirfd, const char *path) {
     }
 
     return parent;
+}
+
+// fcntl constants from mlibc follow...
+
+// constants for fcntl()'s command argument
+#define F_DUPFD 1
+#define F_DUPFD_CLOEXEC 2
+#define F_GETFD 3
+#define F_SETFD 4
+#define F_GETFL 5
+#define F_SETFL 6
+#define F_GETLK 7
+#define F_SETLK 8
+#define F_SETLKW 9
+#define F_GETOWN 10
+#define F_SETOWN 11
+
+// constants for struct flock's l_type member
+#define F_RDLCK 1
+#define F_UNLCK 2
+#define F_WRLCK 3
+
+// constants for fcntl()'s additional argument of F_GETFD and F_SETFD
+#define FD_CLOEXEC 1
+
+void syscall_fcntl(struct cpu_gpr_context *ctx) {
+    int fildes = (int) ctx->rdi;
+    int cmd    = (int) ctx->rsi;
+
+    struct file_descriptor *fd = fd_from_fd(fildes);
+    if (fd == NULL) {
+        ctx->rax = (uint64_t)-1;
+        return;
+    }
+
+    struct handle *handle = fd->handle;
+
+    switch (cmd) {
+        case F_GETFD:
+            ctx->rax = (uint64_t)fd->flags;
+            return;
+        case F_SETFD:
+            fd->flags = (int)ctx->rdx;
+            ctx->rax = (uint64_t)0;
+            return;
+        case F_GETFL:
+            ctx->rax = (uint64_t)handle->flags;
+            return;
+        case F_SETFL:
+            handle->flags = (int)ctx->rdx;
+            ctx->rax = (uint64_t)0;
+            return;
+        default:
+            print("\nfcntl: Unhandled command: %d\n", cmd);
+            errno = EINVAL;
+            ctx->rax = (uint64_t)-1;
+            return;
+    }
 }
 
 void syscall_openat(struct cpu_gpr_context *ctx) {
@@ -392,36 +452,35 @@ void syscall_openat(struct cpu_gpr_context *ctx) {
         return;
     }
 
-    struct resource *res = vfs_open(parent, path, flags, mode);
+    int creat_flags = flags & FILE_CREATION_FLAGS_MASK;
+
+    struct resource *res = vfs_open(parent, path, creat_flags, mode);
 
     if (res == NULL) {
         ctx->rax = (uint64_t)-1;
         return;
     }
 
-    struct handle *handle = alloc(sizeof(struct handle));
-
-    handle->res = res;
-    handle->loc = 0;
-
-    struct process *process = this_cpu->current_thread->process;
-
-    int ret = DYNARRAY_INSERT(process->handles, handle);
+    int ret = fd_create(res, flags);
 
     ctx->rax = (uint64_t)ret;
 }
 
 void syscall_close(struct cpu_gpr_context *ctx) {
-    int fd = (int)ctx->rdi;
+    int fildes = (int)ctx->rdi;
 
-    struct process *process = this_cpu->current_thread->process;
+    struct file_descriptor *fd = fd_from_fd(fildes);
+    struct handle *handle = fd->handle;
+    struct resource *res = handle->res;
 
-    struct handle *handle = process->handles.storage[fd];
+    ctx->rax = (uint64_t)res->close(res);
 
-    ctx->rax = (uint64_t)handle->res->close(handle->res);
+    if (--handle->refcount == 0)
+        free(handle);
 
-    process->handles.storage[fd] = NULL;
-    free(handle);
+    free(fd);
+
+    this_cpu->current_thread->process->fds.storage[fildes] = NULL;
 }
 
 void syscall_read(struct cpu_gpr_context *ctx) {
@@ -429,9 +488,7 @@ void syscall_read(struct cpu_gpr_context *ctx) {
     void  *buf   = (void *) ctx->rsi;
     size_t count = (size_t) ctx->rdx;
 
-    struct process *process = this_cpu->current_thread->process;
-
-    struct handle *handle = process->handles.storage[fd];
+    struct handle *handle = handle_from_fd(fd);
 
     ssize_t ret = handle->res->read(handle->res, buf, handle->loc, count);
 
@@ -450,9 +507,7 @@ void syscall_write(struct cpu_gpr_context *ctx) {
     void  *buf   = (void *) ctx->rsi;
     size_t count = (size_t) ctx->rdx;
 
-    struct process *process = this_cpu->current_thread->process;
-
-    struct handle *handle = process->handles.storage[fd];
+    struct handle *handle = handle_from_fd(fd);
 
     ssize_t ret = handle->res->write(handle->res, buf, handle->loc, count);
 
@@ -471,11 +526,9 @@ void syscall_ioctl(struct cpu_gpr_context *ctx) {
     int   request = (int)    ctx->rsi;
     void *argp    = (void *) ctx->rdx;
 
-    struct process *process = this_cpu->current_thread->process;
+    struct resource *res = resource_from_fd(fd);
 
-    struct handle *handle = process->handles.storage[fd];
-
-    int ret = handle->res->ioctl(handle->res, request, argp);
+    int ret = res->ioctl(res, request, argp);
 
     if (ret == -1) {
         ctx->rax = (uint64_t)-1;
@@ -570,9 +623,7 @@ void syscall_seek(struct cpu_gpr_context *ctx) {
 
     SPINLOCK_ACQUIRE(vfs_lock);
 
-    struct process *process = this_cpu->current_thread->process;
-
-    struct handle *handle = process->handles.storage[fd];
+    struct handle *handle = handle_from_fd(fd);
 
     if (handle->res->st.st_size == 0) {
         ctx->rax = 0;
@@ -680,11 +731,9 @@ void syscall_fstat(struct cpu_gpr_context *ctx) {
     int          fd      = (int)           ctx->rdi;
     struct stat *statbuf = (struct stat *) ctx->rsi;
 
-    struct process *process = this_cpu->current_thread->process;
+    struct resource *res = resource_from_fd(fd);
 
-    struct handle *handle = process->handles.storage[fd];
-
-    *statbuf = handle->res->st;
+    *statbuf = res->st;
 
     ctx->rax = 0;
 }

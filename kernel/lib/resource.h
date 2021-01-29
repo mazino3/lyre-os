@@ -33,9 +33,32 @@ struct handle {
         struct resource *res;
         struct vfs_node *node;
     };
+    int refcount;
     off_t loc;
+    int flags;
+};
+
+struct file_descriptor {
+    struct handle *handle;
+    int flags;
 };
 
 void *resource_create(size_t actual_size);
+int fd_create(struct resource *res, int flags);
+struct file_descriptor *fd_from_fd(int fildes);
+struct handle *handle_from_fd(int fildes);
+struct resource *resource_from_fd(int fildes);
+
+#define FILE_CREATION_FLAGS_MASK ( \
+    O_CREAT | O_DIRECTORY | O_EXCL | O_NOCTTY | O_NOFOLLOW | O_TRUNC \
+)
+
+#define FILE_DESCRIPTOR_FLAGS_MASK ( \
+    O_CLOEXEC \
+)
+
+#define FILE_STATUS_FLAGS_MASK ( \
+    ~(FILE_CREATION_FLAGS_MASK | FILE_DESCRIPTOR_FLAGS_MASK) \
+)
 
 #endif

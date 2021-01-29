@@ -84,17 +84,23 @@ struct process *sched_start_program(bool execve,
         struct resource *stdin_res  = vfs_open(NULL, stdin,  O_RDONLY, 0);
         struct handle *stdin_handle  = alloc(sizeof(struct handle));
         stdin_handle->res = stdin_res;
-        DYNARRAY_INSERT(new_process->handles, stdin_handle);
+        struct file_descriptor *stdin_fd = alloc(sizeof(struct file_descriptor));
+        stdin_fd->handle = stdin_handle;
+        DYNARRAY_INSERT(new_process->fds, stdin_fd);
 
         struct resource *stdout_res = vfs_open(NULL, stdout, O_WRONLY, 0);
         struct handle *stdout_handle = alloc(sizeof(struct handle));
         stdout_handle->res = stdout_res;
-        DYNARRAY_INSERT(new_process->handles, stdout_handle);
+        struct file_descriptor *stdout_fd = alloc(sizeof(struct file_descriptor));
+        stdout_fd->handle = stdout_handle;
+        DYNARRAY_INSERT(new_process->fds, stdout_fd);
 
         struct resource *stderr_res = vfs_open(NULL, stderr, O_WRONLY, 0);
         struct handle *stderr_handle = alloc(sizeof(struct handle));
         stderr_handle->res = stderr_res;
-        DYNARRAY_INSERT(new_process->handles, stderr_handle);
+        struct file_descriptor *stderr_fd = alloc(sizeof(struct file_descriptor));
+        stderr_fd->handle = stderr_handle;
+        DYNARRAY_INSERT(new_process->fds, stderr_fd);
 
         sched_new_thread(NULL, new_process, true, entry_point, NULL,
                          argv, envp, &auxval, true, NULL);
@@ -183,8 +189,13 @@ struct process *sched_new_process(struct process *old_process, struct pagemap *p
         new_process->mmap_anon_non_fixed_base = old_process->mmap_anon_non_fixed_base;
         new_process->current_directory = old_process->current_directory;
 
-        for (size_t i = 0; i < old_process->handles.length; i++) {
-            DYNARRAY_PUSHBACK(new_process->handles, old_process->handles.storage[i]);
+        for (size_t i = 0; i < old_process->fds.length; i++) {
+            if (old_process->fds.storage[i] == NULL)
+                continue;
+            struct file_descriptor *fd = alloc(sizeof(struct file_descriptor));
+            *fd = *old_process->fds.storage[i];
+            fd->handle->refcount++;
+            DYNARRAY_PUSHBACK(new_process->fds, fd);
         }
     }
 

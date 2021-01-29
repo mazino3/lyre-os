@@ -35,14 +35,7 @@ void syscall_socket(struct cpu_gpr_context *ctx) {
         return;
     }
 
-    struct handle *handle = alloc(sizeof(struct handle));
-
-    handle->res = new_socket;
-    handle->loc = 0;
-
-    struct process *process = this_cpu->current_thread->process;
-
-    int ret = DYNARRAY_INSERT(process->handles, handle);
+    int ret = fd_create(new_socket, 0);
 
     ctx->rax = (uint64_t)ret;
 }
@@ -52,11 +45,13 @@ void syscall_bind(struct cpu_gpr_context *ctx) {
     const struct sockaddr *addr_ptr = (const struct sockaddr *) ctx->rsi;
     socklen_t              addr_len = (socklen_t)               ctx->rdx;
 
-    struct process *process = this_cpu->current_thread->process;
+    struct resource *res = resource_from_fd(fd);
+    if (res == NULL) {
+        ctx->rax = (uint64_t)-1;
+        return;
+    }
 
-    struct handle *handle = process->handles.storage[fd];
-
-    int ret = handle->res->bind(handle->res, addr_ptr, addr_len);
+    int ret = res->bind(res, addr_ptr, addr_len);
 
     ctx->rax = (uint64_t)ret;
 }

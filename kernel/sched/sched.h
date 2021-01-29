@@ -35,7 +35,7 @@ struct process {
     DYNARRAY_STRUCT(struct thread *) threads;
     uintptr_t thread_stack_top;
     uintptr_t mmap_anon_non_fixed_base;
-    DYNARRAY_STRUCT(struct handle *) handles;
+    DYNARRAY_STRUCT(struct file_descriptor *) fds;
     struct vfs_node *current_directory;
 };
 

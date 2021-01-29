@@ -353,6 +353,15 @@ void dequeue_and_yield(lock_t *lock) {
     yield();
 }
 
+void yield(void) {
+    asm ("cli");
+    LOCKED_WRITE(this_cpu->current_thread->yield_await, 1);
+    lapic_timer_oneshot(reschedule_vector, 1);
+    asm ("sti");
+    while (LOCKED_READ(this_cpu->current_thread->yield_await) != 0)
+        asm ("hlt");
+}
+
 bool sched_queue_back(struct thread *thread) {
     SPINLOCK_ACQUIRE(sched_lock);
 
@@ -371,6 +380,9 @@ bool sched_queue_back(struct thread *thread) {
 }
 
 static ssize_t get_next_thread(ssize_t index) {
+    if (running_queue.length == 0)
+        return -1;
+
     if (index == -1) {
         index = 0;
     } else {
@@ -414,6 +426,7 @@ void reschedule(struct cpu_gpr_context *ctx) {
         current_thread->user_gs = get_user_gs();
         current_thread->user_fs = get_user_fs();
         current_thread->user_stack = cpu_local->user_stack;
+        LOCKED_WRITE(this_cpu->current_thread->yield_await, 0);
         LOCK_RELEASE(current_thread->lock);
     }
 

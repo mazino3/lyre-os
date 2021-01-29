@@ -25,6 +25,7 @@ struct thread {
     uintptr_t user_stack;
     uintptr_t kernel_stack;
     lock_t event_block_requeue;
+    int yield_await;
 };
 
 struct process {

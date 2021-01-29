@@ -14,6 +14,7 @@
 #include <sched/sched.h>
 #include <sys/idt.h>
 #include <sys/port_io.h>
+#include <sys/apic.h>
 
 // Tries to implement this standard for terminfo
 // http://man7.org/linux/man-pages/man4/console_codes.4.html
@@ -541,7 +542,7 @@ static const uint8_t ascii_nomod[] = {
     'b', 'n', 'm', ',', '.', '/', '\0', '\0', '\0', ' '
 };
 
-__attribute__((always_inline)) inline int is_printable(char c) {
+static bool is_printable(char c) {
     return (c >= 0x20 && c <= 0x7e);
 }
 
@@ -609,7 +610,7 @@ static void add_to_buf(struct tty *tty, const char *s, size_t cnt) {
         }
         add_to_buf_char(tty, s[i]);
     }
-    event_trigger(tty->kbd_event, 1);
+    event_trigger(tty->kbd_event);
 }
 
 static void keyboard_handler(void *p) {
@@ -725,7 +726,7 @@ await:
         // ctrl-alt combos
         if (input_byte >= 0x3b && input_byte <= 0x40) {
             // ctrl-alt [f1-f6]
-            current_tty = input_byte - 0x3b;
+            current_tty = ttys[input_byte - 0x3b];
             refresh(current_tty);
             goto out;
         }
@@ -775,7 +776,7 @@ static ssize_t tty_read(struct resource *this, void *void_buf, off_t loc, size_t
     int wait = 1;
 
     while (!LOCK_ACQUIRE(tty->read_lock)) {
-        if (events_await((struct event *[]){tty->kbd_event}, &ret, 1)) {
+        if (!events_await((struct event *[]){tty->kbd_event}, &ret, 1)) {
             // signal is aborting us, bail
             errno = EINTR;
             return -1;
@@ -794,7 +795,7 @@ static ssize_t tty_read(struct resource *this, void *void_buf, off_t loc, size_t
             if (wait) {
                 LOCK_RELEASE(tty->read_lock);
                 do {
-                    if (events_await((struct event *[]){tty->kbd_event}, &ret, 1)) {
+                    if (!events_await((struct event *[]){tty->kbd_event}, &ret, 1)) {
                         // signal is aborting us, bail
                         errno = EINTR;
                         return -1;

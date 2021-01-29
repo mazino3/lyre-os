@@ -31,11 +31,12 @@ static void main_thread(struct stivale2_struct *stivale2_struct) {
     vfs_dump_nodes(NULL, "");
     vfs_mount("devtmpfs", "/dev", "devtmpfs");
 
-    dev_init();
-    vfs_dump_nodes(NULL, "");
 
     struct stivale2_struct_tag_framebuffer *framebuffer_tag =
         stivale2_get_tag(stivale2_struct, STIVALE2_STRUCT_TAG_FRAMEBUFFER_ID);
+    
+    dev_init(framebuffer_tag);
+    vfs_dump_nodes(NULL, "");
 
     console_init((void*)framebuffer_tag->framebuffer_addr + MEM_PHYS_OFFSET,
                  framebuffer_tag->framebuffer_width,

@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <lib/types.h>
 #include <lib/resource.h>
+#include <stivale/stivale2.h>
 
 // The following functions were taken from mlibc
 
@@ -28,6 +29,6 @@ dev_t dev_new_id(void);
 
 bool dev_add_new(struct resource *device, const char *dev_name);
 
-bool dev_init(void);
+bool dev_init(struct stivale2_struct_tag_framebuffer *framebuffer_tag);
 
 #endif

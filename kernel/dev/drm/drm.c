@@ -5,8 +5,8 @@
 
 size_t num_devices = 0;
 
-void init_drm(void) {
-    init_rawfbdev();
+void init_drm(struct stivale2_struct_tag_framebuffer *framebuffer_tag) {
+    init_rawfbdev(framebuffer_tag);
 
     return true;
 }

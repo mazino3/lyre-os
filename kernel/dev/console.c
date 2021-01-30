@@ -615,15 +615,15 @@ static void add_to_buf(struct tty *tty, const char *s, size_t cnt) {
 
 static void keyboard_handler(void *p) {
     (void)p;
-    int ret;
     int vect = idt_get_empty_int_vector();
 
     print("console: PS/2 keyboard vector is %x\n", vect);
 
     io_apic_set_irq_redirect(0, vect, 1, true);
 
-await:
-    events_await((struct event *[]){int_event[vect]}, &ret, 1);
+await:;
+    ssize_t which;
+    events_await((struct event *[]){int_event[vect]}, &which, 1, false);
     uint8_t input_byte = inb(0x60);
 
     char c = '\0';
@@ -764,7 +764,6 @@ out:
 
 static ssize_t tty_read(struct resource *this, void *void_buf, off_t loc, size_t count) {
     (void)loc;
-    int ret;
     struct tty *tty = (void*)this;
 
     if (tty->tcioff) {
@@ -776,7 +775,8 @@ static ssize_t tty_read(struct resource *this, void *void_buf, off_t loc, size_t
     int wait = 1;
 
     while (!LOCK_ACQUIRE(tty->read_lock)) {
-        if (!events_await((struct event *[]){tty->kbd_event}, &ret, 1)) {
+        ssize_t which;
+        if (!events_await((struct event *[]){tty->kbd_event}, &which, 1, false)) {
             // signal is aborting us, bail
             errno = EINTR;
             return -1;
@@ -795,7 +795,8 @@ static ssize_t tty_read(struct resource *this, void *void_buf, off_t loc, size_t
             if (wait) {
                 LOCK_RELEASE(tty->read_lock);
                 do {
-                    if (!events_await((struct event *[]){tty->kbd_event}, &ret, 1)) {
+                    ssize_t which;
+                    if (!events_await((struct event *[]){tty->kbd_event}, &which, 1, false)) {
                         // signal is aborting us, bail
                         errno = EINTR;
                         return -1;

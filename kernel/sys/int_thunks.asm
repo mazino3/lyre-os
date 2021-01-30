@@ -99,6 +99,8 @@ syscall_table:
     dq syscall_fcntl
     extern syscall_dup3
     dq syscall_dup3
+    extern syscall_waitpid
+    dq syscall_waitpid
   .end:
 
 section .rodata

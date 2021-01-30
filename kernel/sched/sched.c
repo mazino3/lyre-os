@@ -9,6 +9,7 @@
 #include <sys/idt.h>
 #include <sys/apic.h>
 #include <lib/print.h>
+#include <lib/errno.h>
 #include <fs/vfs.h>
 
 #define THREAD_STACK_SIZE ((size_t)32768)
@@ -164,9 +165,67 @@ void syscall_fork(struct cpu_gpr_context *ctx) {
 
     new_thread->tid = DYNARRAY_INSERT(new_process->threads, new_thread);
 
+    DYNARRAY_INSERT(old_process->children, new_process);
+
     LOCK_RELEASE(sched_lock);
 
     ctx->rax = (uint64_t)new_process->pid;
+}
+
+// defines from mlibc...
+
+#define WCONTINUED 1
+#define WNOHANG 2
+#define WUNTRACED 4
+#define WEXITED 8
+#define WNOWAIT 16
+#define WSTOPPED 32
+
+#define WCOREFLAG 0x80
+
+#define WEXITSTATUS(x) ((x) & 0x000000FF)
+#define WIFCONTINUED(x) ((x) & 0x00000100)
+#define WIFEXITED(x) ((x) & 0x00000200)
+#define WIFSIGNALED(x) ((x) & 0x00000400)
+#define WIFSTOPPED(x) ((x) & 0x00000800)
+#define WSTOPSIG(x) (((x) & 0x00FF0000) >> 16)
+#define WTERMSIG(x) (((x) & 0xFF000000) >> 24)
+#define WCOREDUMP(x) ((x) & WCOREFLAG)
+
+void syscall_waitpid(struct cpu_gpr_context *ctx) {
+    pid_t pid     = (pid_t) ctx->rdi;
+    int  *status  = (int *) ctx->rsi;
+    int   options = (int)   ctx->rdx;
+
+    struct process *process = this_cpu->current_thread->process;
+
+    struct event **events;
+
+    if (pid == -1) {
+        events = alloc(process->children.length * sizeof(struct event *));
+        for (size_t i = 0; i < process->children.length; i++) {
+            events[i] = process->children.storage[i]->event;
+        }
+    } else {
+        print("\nwaitpid: value of pid %d not supported\n", pid);
+        errno = EINVAL;
+        ctx->rax = (uint64_t)-1;
+        return;
+    }
+
+    ssize_t which;
+    events_await(events, &which, process->children.length,
+                 options & WNOHANG);
+    free(events);
+
+    if (which == -1) {
+        ctx->rax = (uint64_t)0;
+        return;
+    }
+
+    *status = process->children.storage[which]->status;
+    ctx->rax = (uint64_t)process->children.storage[which]->pid;
+
 }
 
 struct process *sched_new_process(struct process *old_process, struct pagemap *pagemap) {
@@ -198,6 +257,8 @@ struct process *sched_new_process(struct process *old_process, struct pagemap *p
             DYNARRAY_PUSHBACK(new_process->fds, fd);
         }
     }
+
+    new_process->event = event_create(1);
 
     SPINLOCK_ACQUIRE(sched_lock);
 

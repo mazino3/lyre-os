@@ -5,13 +5,14 @@
 #include <stdbool.h>
 #include <sched/sched.h>
 #include <lib/lock.h>
+#include <lib/types.h>
 
 struct event_listener {
     lock_t lock;
     lock_t ready;
     struct thread *thread;
-    void *bitmap;
-    size_t bitmap_offset;
+    size_t   index;
+    ssize_t *which;
 };
 
 struct event {
@@ -21,7 +22,8 @@ struct event {
 };
 
 struct event *event_create(size_t max_listeners);
-bool events_await(struct event **events, void *bitmap, size_t event_count);
+bool events_await(struct event **events, ssize_t *which, size_t event_count,
+                  bool no_block);
 void event_trigger(struct event *event);
 
 #endif

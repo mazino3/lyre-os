@@ -2,7 +2,6 @@
 #include <stdint.h>
 #include <lib/event.h>
 #include <lib/lock.h>
-#include <lib/bitmap.h>
 #include <sched/sched.h>
 
 static struct event_listener *get_listener(struct event *event) {
@@ -13,31 +12,53 @@ static struct event_listener *get_listener(struct event *event) {
     return NULL;
 }
 
-bool events_await(struct event **events, void *bitmap, size_t event_count) {
+bool events_await(struct event **events, ssize_t *which, size_t event_count,
+                  bool no_block) {
     struct thread *thread = this_cpu->current_thread;
 
     LOCK_RELEASE(thread->event_block_requeue);
+    LOCK_RELEASE(thread->event_occurred);
+
+    struct event_listener *listeners[event_count];
+    size_t listeners_armed = 0;
 
     for (size_t i = 0; i < event_count; i++) {
-        bitmap_unset(bitmap, i);
+        if (LOCKED_READ(events[i]->pending) > 0
+         && LOCK_ACQUIRE(thread->event_occurred)) {
+            LOCKED_DEC(events[i]->pending);
+            *which = i;
+            goto unarm_listeners;
+        }
+
+        if (!LOCK_ACQUIRE(thread->event_occurred)) {
+            goto unarm_listeners;
+        }
+        LOCK_RELEASE(thread->event_occurred);
+
         struct event_listener *listener = get_listener(events[i]);
         if (listener == NULL)
             return false;
-        listener->thread        = this_cpu->current_thread;
-        listener->bitmap        = bitmap;
-        listener->bitmap_offset = i;
+        listener->thread = this_cpu->current_thread;
+        listener->which  = which;
+        listener->index  = i;
         LOCK_ACQUIRE(listener->ready);
 
-        if (LOCKED_READ(events[i]->pending) > 0) {
-            LOCK_RELEASE(listener->lock);
-            LOCK_RELEASE(listener->ready);
-            LOCKED_DEC(events[i]->pending);
-            bitmap_set(bitmap, i);
-            return true;
-        }
+        listeners[i] = listener;
+        listeners_armed = i++;
+    }
+
+    if (no_block && LOCK_ACQUIRE(thread->event_occurred)) {
+        *which = -1;
+        goto unarm_listeners;
     }
 
     dequeue_and_yield(&thread->event_block_requeue);
+
+unarm_listeners:
+    for (size_t i = 0; i < listeners_armed; i++) {
+        LOCK_RELEASE(listeners[i]->ready);
+        LOCK_RELEASE(listeners[i]->lock);
+    }
 
     return true;
 }
@@ -63,9 +84,13 @@ void event_trigger(struct event *event) {
             continue;
         }
 
+        if (!LOCK_ACQUIRE(listener->thread->event_occurred)) {
+            continue;
+        }
+
         pending = false;
 
-        bitmap_set(listener->bitmap, listener->bitmap_offset);
+        *listener->which = listener->index;
 
         struct thread *thread = listener->thread;
 

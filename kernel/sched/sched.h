@@ -8,6 +8,7 @@
 #include <lib/dynarray.h>
 #include <lib/lock.h>
 #include <lib/elf.h>
+#include <lib/event.h>
 #include <sys/cpu.h>
 #include <mm/vmm.h>
 #include <fs/vfs.h>
@@ -25,6 +26,7 @@ struct thread {
     uintptr_t user_stack;
     uintptr_t kernel_stack;
     lock_t event_block_requeue;
+    lock_t event_occurred;
     int yield_await;
 };
 
@@ -37,6 +39,9 @@ struct process {
     uintptr_t mmap_anon_non_fixed_base;
     DYNARRAY_STRUCT(struct file_descriptor *) fds;
     struct vfs_node *current_directory;
+    struct event *event;
+    int status;
+    DYNARRAY_STRUCT(struct process *) children;
 };
 
 extern struct process *kernel_process;

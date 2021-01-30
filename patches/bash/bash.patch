@@ -40,7 +40,7 @@ index 30881fb..be9c84b 100644
       int sig;
  {
 diff --git a/ports/bash-orig/lib/readline/terminal.c b/ports/bash-workdir/lib/readline/terminal.c
-index e557389..2ad3ad8 100644
+index 05415dc..825f5c6 100644
 --- a/ports/bash-orig/lib/readline/terminal.c
 +++ b/ports/bash-workdir/lib/readline/terminal.c
 @@ -103,7 +103,7 @@ static char *term_string_buffer = (char *)NULL;
@@ -141,10 +141,10 @@ index 0385686..1a73eca 100644
 -}
 -#endif /* HAVE_STRERROR */
 diff --git a/ports/bash-orig/shell.c b/ports/bash-workdir/shell.c
-index a2b2a55..b7c0ab0 100644
+index ce8087f..b7475dd 100644
 --- a/ports/bash-orig/shell.c
 +++ b/ports/bash-workdir/shell.c
-@@ -1590,7 +1590,7 @@ open_shell_script (script_name)
+@@ -1614,7 +1614,7 @@ open_shell_script (script_name)
  #endif
  
    /* Only do this with non-tty file descriptors we can seek on. */
@@ -153,7 +153,7 @@ index a2b2a55..b7c0ab0 100644
      {
        /* Check to see if the `file' in `bash file' is a binary file
  	 according to the same tests done by execute_simple_command (),
-@@ -1627,7 +1627,7 @@ open_shell_script (script_name)
+@@ -1651,7 +1651,7 @@ open_shell_script (script_name)
  	  exit (EX_BINARY_FILE);
  	}
        /* Now rewind the file back to the beginning. */
@@ -163,7 +163,7 @@ index a2b2a55..b7c0ab0 100644
  
    /* Open the script.  But try to move the file descriptor to a randomly
 diff --git a/ports/bash-orig/support/bashversion.c b/ports/bash-workdir/support/bashversion.c
-index 59c2321..6700fc4 100644
+index 4f86b13..64779de 100644
 --- a/ports/bash-orig/support/bashversion.c
 +++ b/ports/bash-workdir/support/bashversion.c
 @@ -18,15 +18,12 @@
@@ -185,20 +185,20 @@ index 59c2321..6700fc4 100644
  #include "bashansi.h"
  
 diff --git a/ports/bash-orig/support/config.sub b/ports/bash-workdir/support/config.sub
-index f208558..830f9af 100755
+index c874b7a..bbf95b0 100755
 --- a/ports/bash-orig/support/config.sub
 +++ b/ports/bash-workdir/support/config.sub
-@@ -1360,7 +1360,7 @@ case $os in
- 	     | powermax* | dnix* | nx6 | nx7 | sei* | dragonfly* \
- 	     | skyos* | haiku* | rdos* | toppers* | drops* | es* \
- 	     | onefs* | tirtos* | phoenix* | fuchsia* | redox* | bme* \
--	     | midnightbsd*)
-+	     | midnightbsd* | lyre*)
- 	# Remember, each alternative MUST END IN *, to match a version number.
- 		;;
- 	qnx*)
+@@ -1707,7 +1707,7 @@ case $os in
+ 	     | bosx* | nextstep* | cxux* | aout* | elf* | oabi* \
+ 	     | ptx* | coff* | ecoff* | winnt* | domain* | vsta* \
+ 	     | udi* | lites* | ieee* | go32* | aux* | hcos* \
+-	     | chorusrdb* | cegcc* | glidix* \
++	     | chorusrdb* | cegcc* | glidix* | lyre* \
+ 	     | cygwin* | msys* | pe* | moss* | proelf* | rtems* \
+ 	     | midipix* | mingw32* | mingw64* | mint* \
+ 	     | uxpv* | beos* | mpeix* | udk* | moxiebox* \
 diff --git a/ports/bash-orig/support/man2html.c b/ports/bash-workdir/support/man2html.c
-index b10cb95..d691d82 100644
+index e6f441b..f02453d 100644
 --- a/ports/bash-orig/support/man2html.c
 +++ b/ports/bash-workdir/support/man2html.c
 @@ -63,7 +63,7 @@
@@ -221,7 +221,7 @@ index b10cb95..d691d82 100644
  strerror(int e)
  {
 diff --git a/ports/bash-orig/support/mksignames.c b/ports/bash-workdir/support/mksignames.c
-index 5618879..3188bfd 100644
+index ba87ae8..4b39787 100644
 --- a/ports/bash-orig/support/mksignames.c
 +++ b/ports/bash-workdir/support/mksignames.c
 @@ -19,8 +19,6 @@
@@ -234,7 +234,7 @@ index 5618879..3188bfd 100644
  #include <signal.h>
  
 diff --git a/ports/bash-orig/support/signames.c b/ports/bash-workdir/support/signames.c
-index d297808..6ef5776 100644
+index aba4842..b4bbdc6 100644
 --- a/ports/bash-orig/support/signames.c
 +++ b/ports/bash-workdir/support/signames.c
 @@ -18,8 +18,6 @@

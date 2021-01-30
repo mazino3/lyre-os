@@ -101,6 +101,8 @@ syscall_table:
     dq syscall_dup3
     extern syscall_waitpid
     dq syscall_waitpid
+    extern syscall_exit
+    dq syscall_exit
   .end:
 
 section .rodata

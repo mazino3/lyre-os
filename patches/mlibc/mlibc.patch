@@ -77,10 +77,10 @@ index 0000000..ee7a794
 +
 diff --git a/ports/mlibc-workdir/sysdeps/lyre/generic/generic.cpp b/ports/mlibc-workdir/sysdeps/lyre/generic/generic.cpp
 new file mode 100644
-index 0000000..0db203f
+index 0000000..f13ca7b
 --- /dev/null
 +++ b/ports/mlibc-workdir/sysdeps/lyre/generic/generic.cpp
-@@ -0,0 +1,403 @@
+@@ -0,0 +1,407 @@
 +#include <bits/ensure.h>
 +#include <mlibc/debug.hpp>
 +#include <mlibc/all-sysdeps.hpp>
@@ -162,6 +162,7 @@ index 0000000..0db203f
 +#define SYSCALL_FCNTL       20
 +#define SYSCALL_DUP3        21
 +#define SYSCALL_WAITPID     22
++#define SYSCALL_EXIT        23
 +
 +namespace mlibc {
 +
@@ -175,7 +176,10 @@ index 0000000..0db203f
 +    for (;;);
 +}
 +
-+void sys_exit(int status) STUB_ONLY
++void sys_exit(int status) {
++    int ret, errno;
++    SYSCALL1(SYSCALL_EXIT, status);
++}
 +
 +int sys_tcb_set(void *pointer) {
 +    int ret, errno;

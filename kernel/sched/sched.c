@@ -223,9 +223,52 @@ void syscall_waitpid(struct cpu_gpr_context *ctx) {
         return;
     }
 
-    *status = process->children.storage[which]->status;
-    ctx->rax = (uint64_t)process->children.storage[which]->pid;
+    struct process *child = process->children.storage[which];
 
+    *status = child->status;
+    ctx->rax = (uint64_t)child->pid;
+
+    processes.storage[child->pid] = NULL;
+
+    DYNARRAY_REMOVE_AND_PACK(process->children, which);
+
+    free(child);
+}
+
+__attribute__((noreturn))
+void syscall_exit(struct cpu_gpr_context *ctx) {
+    int status = (int) ctx->rdi;
+
+    struct process *process = this_cpu->current_thread->process;
+
+    struct pagemap *old_pagemap = process->pagemap;
+
+    process->pagemap = kernel_pagemap;
+    vmm_switch_pagemap(kernel_pagemap);
+
+    // Close all fds
+    for (size_t i = 0; i < process->fds.length; i++) {
+        fd_close(i);
+    }
+
+    // PID 1 inherits children
+    for (size_t i = 0; i < process->children.length; i++) {
+        DYNARRAY_INSERT(processes.storage[1]->children,
+                        process->children.storage[i]);
+    }
+
+    vmm_erase_pagemap(old_pagemap);
+
+    // Set WIFEXITED
+    status |= 0x00000200;
+
+    LOCKED_WRITE(process->status, status);
+    event_trigger(process->event);
+
+    // TODO self destroy thread, just dequeue for now but it's a memleak
+    dequeue_and_yield(NULL);
+
+    for (;;);
 }
 
 struct process *sched_new_process(struct process *old_process, struct pagemap *pagemap) {

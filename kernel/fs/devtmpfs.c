@@ -50,7 +50,7 @@ static struct vfs_node *devtmpfs_mount(struct resource *device) {
     if (devfs_mount_gate.res == NULL) {
         devfs_mount_gate.res = resource_create(sizeof(struct resource));
         devfs_mount_gate.res->st.st_dev     = devfs_mount_gate.backing_dev_id;
-        devfs_mount_gate.res->st.st_mode    = S_IFDIR;
+        devfs_mount_gate.res->st.st_mode    = 0755 | S_IFDIR;
         devfs_mount_gate.res->st.st_ino     = inode_counter++;
         devfs_mount_gate.res->st.st_blksize = 512;
         devfs_mount_gate.res->st.st_nlink   = 1;

@@ -30,7 +30,7 @@ static struct vfs_node *tmpfs_mount(struct resource *device) {
     mount_data->inode_counter = 1;
 
     struct resource *res = resource_create(sizeof(struct resource));
-    res->st.st_mode    = S_IFDIR;
+    res->st.st_mode    = 0755 | S_IFDIR;
     res->st.st_ino     = mount_data->inode_counter++;
     res->st.st_blksize = 512;
     res->st.st_nlink   = 1;

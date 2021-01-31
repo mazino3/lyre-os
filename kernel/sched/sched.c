@@ -280,7 +280,7 @@ struct process *sched_new_process(struct process *old_process, struct pagemap *p
         new_process->ppid = 0;
 
         new_process->pagemap = pagemap;
-        new_process->current_directory = &vfs_root_node;
+        new_process->current_directory = vfs_root_node;
 
         init_process(new_process);
     } else {
@@ -598,6 +598,6 @@ void sched_init(void) {
 
     kernel_process = alloc(sizeof(struct process));
     kernel_process->pagemap = kernel_pagemap;
-    kernel_process->current_directory = &vfs_root_node;
+    kernel_process->current_directory = vfs_root_node;
     DYNARRAY_INSERT(processes, kernel_process);
 }

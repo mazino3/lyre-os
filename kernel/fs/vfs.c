@@ -88,24 +88,7 @@ term:
     }
 }
 
-static struct resource root_res = {
-    .st = {
-        .st_mode = S_IFDIR,
-        .st_ino  = VFS_ROOT_INODE
-    }
-};
-
-struct vfs_node vfs_root_node = {
-    .name           = "/",
-    .res            = &root_res,
-    .mount_data     = NULL,
-    .fs             = NULL,
-    .mount_gate     = NULL,
-    .parent         = NULL,
-    .child          = NULL,
-    .next           = NULL,
-    .backing_dev_id = 0
-};
+struct vfs_node *vfs_root_node;
 
 #define NO_CREATE      0b0000
 #define CREATE_SHALLOW 0b0001
@@ -135,7 +118,7 @@ static struct vfs_node *path2node(struct vfs_node *parent, const char *_path, in
             break;
     }
 
-    struct vfs_node *cur_parent = *path == '/' || parent == NULL ? &vfs_root_node : parent;
+    struct vfs_node *cur_parent = *path == '/' || parent == NULL ? vfs_root_node : parent;
     if (cur_parent->mount_gate)
         cur_parent = cur_parent->mount_gate;
     struct vfs_node *cur_node   = cur_parent->child;
@@ -143,7 +126,7 @@ static struct vfs_node *path2node(struct vfs_node *parent, const char *_path, in
     while (*path == '/') {
         path++;
         if (!*path)
-            return &vfs_root_node;
+            return vfs_root_node;
     }
 
 next:;
@@ -258,13 +241,24 @@ bool vfs_mount(const char *source, const char *target, const char *fstype) {
     if (fs == NULL)
         return false;
 
-    struct vfs_node *tgt_node = path2node(NULL, target, NO_CREATE);
-    if (tgt_node == NULL)
-        return false;
+    bool mounting_root = false;
+    for (size_t i = 0; target[i] == '/'; i++) {
+        if (target[i+1] == 0) {
+            mounting_root = true;
+            break;
+        }
+    }
 
-    if (!S_ISDIR(tgt_node->res->st.st_mode)) {
-        errno = ENOTDIR;
-        return false;
+    struct vfs_node *tgt_node;
+    if (!mounting_root) {
+        tgt_node = path2node(NULL, target, NO_CREATE);
+        if (tgt_node == NULL)
+            return false;
+
+        if (!S_ISDIR(tgt_node->res->st.st_mode)) {
+            errno = ENOTDIR;
+            return false;
+        }
     }
 
     dev_t backing_dev_id;
@@ -295,9 +289,15 @@ bool vfs_mount(const char *source, const char *target, const char *fstype) {
         mount_gate->res->st.st_dev = backing_dev_id;
     }
 
-    tgt_node->mount_gate = mount_gate;
-    mount_gate->parent = tgt_node->parent;
-    strcpy(mount_gate->name, tgt_node->name);
+    if (mounting_root) {
+        vfs_root_node = mount_gate;
+        mount_gate->parent = NULL;
+        strcpy(mount_gate->name, "/");
+    } else {
+        tgt_node->mount_gate = mount_gate;
+        mount_gate->parent = tgt_node->parent;
+        strcpy(mount_gate->name, tgt_node->name);
+    }
 
     print("vfs: Mounted `%s` on `%s`, type: `%s`.\n", source, target, fstype);
 
@@ -306,7 +306,7 @@ bool vfs_mount(const char *source, const char *target, const char *fstype) {
 
 struct vfs_node *vfs_mkdir(struct vfs_node *parent, const char *name, mode_t mode, bool recurse) {
     if (parent == NULL)
-        parent = &vfs_root_node;
+        parent = vfs_root_node;
 
     struct vfs_node *new_dir = path2node(parent, name, NO_CREATE);
 
@@ -333,7 +333,7 @@ struct vfs_node *vfs_mkdir(struct vfs_node *parent, const char *name, mode_t mod
 
 struct vfs_node *vfs_new_node(struct vfs_node *parent, const char *name) {
     if (parent == NULL)
-        parent = &vfs_root_node;
+        parent = vfs_root_node;
 
     if (parent->mount_gate)
         parent = parent->mount_gate;
@@ -375,7 +375,7 @@ static struct vfs_node *get_parent_dir(int dirfd, const char *path) {
 
     struct vfs_node *parent;
     if (is_absolute) {
-        parent = &vfs_root_node;
+        parent = vfs_root_node;
     } else {
         if (dirfd == AT_FDCWD) {
             parent = process->current_directory;
@@ -764,7 +764,7 @@ bool vfs_symlink(struct vfs_node *parent, const char *target, const char *path) 
 }
 
 void vfs_dump_nodes(struct vfs_node *node, const char *parent) {
-    struct vfs_node *cur_node = node ? node : &vfs_root_node;
+    struct vfs_node *cur_node = node ? node : vfs_root_node;
     for (; cur_node; cur_node = cur_node->next) {
         print("%s - %s\n", parent, cur_node->name);
         if (!strcmp(cur_node->name, ".") || !strcmp(cur_node->name, ".."))

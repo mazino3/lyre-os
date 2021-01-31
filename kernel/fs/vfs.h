@@ -22,8 +22,6 @@ struct filesystem {
     struct resource *(*mkdir)(struct vfs_node *node, mode_t mode);
 };
 
-#define VFS_ROOT_INODE ((ino_t)0xffffffffffffffff)
-
 struct vfs_node {
     char name[NAME_MAX];
     char target[NAME_MAX];
@@ -37,7 +35,7 @@ struct vfs_node {
     struct vfs_node *next;
 };
 
-extern struct vfs_node vfs_root_node;
+extern struct vfs_node *vfs_root_node;
 
 struct vfs_node *vfs_new_node(struct vfs_node *parent, const char *name);
 struct vfs_node *vfs_new_node_deep(struct vfs_node *parent, const char *name);

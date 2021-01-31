@@ -147,12 +147,12 @@ next:;
         }
 
         if (strcmp(cur_node->name, elem)) {
-            if (cur_node->next == NULL)
-                break;
             if (mount_peek)
                 cur_node = mount_parent->next;
             else
                 cur_node = cur_node->next;
+            if (cur_node == NULL)
+                break;
             continue;
         }
 

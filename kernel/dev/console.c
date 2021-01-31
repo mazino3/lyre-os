@@ -873,10 +873,13 @@ bool console_init(uint32_t *_fb,
         tty->write = tty_write;
         tty->ioctl = tty_ioctl;
 
+        tty->st.st_mode = 0644 | S_IFCHR;
+        tty->st.st_rdev = dev_new_id();
+
         ttys[i] = tty;
 
         char tty_name[8];
-        snprint(tty_name, 8, "tty%u", i);
+        snprint(tty_name, 8, "tty%u", i+1);
 
         dev_add_new(tty, tty_name);
     }

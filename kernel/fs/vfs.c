@@ -110,41 +110,27 @@ static struct vfs_node *path2node(struct vfs_node *parent, const char *_path, in
 
     char *path = l_path;
 
-    // Get rid of trailing slashes
-    for (ssize_t i = strlen(path) - 1; i > 0; i--) {
-        if (path[i] == '/')
-            path[i] = 0;
-        else
-            break;
-    }
-
     struct vfs_node *cur_parent = *path == '/' || parent == NULL ? vfs_root_node : parent;
     if (cur_parent->mount_gate)
         cur_parent = cur_parent->mount_gate;
-    struct vfs_node *cur_node   = cur_parent->child;
 
-    while (*path == '/') {
+    struct vfs_node *cur_node = cur_parent->child;
+
+    while (*path == '/')
         path++;
-        if (!*path)
-            return vfs_root_node;
-    }
+    if (*path == 0)
+        return vfs_root_node;
 
 next:;
     char *elem = path;
-    while (*path != 0) {
-        if (*path == '/') {
-            if (*(path + 1) == '/') {
-                path++;
-                continue;
-            } else {
-                break;
-            }
-        }
+    while (*path != 0 && *path != '/')
         path++;
-    }
-    if (*path == '/')
+    if (*path == '/') {
         *path++ = 0;
-    else /* path == 0 */
+        while (*path == '/')
+            path++;
+    }
+    if (*path == 0)
         last = true;
 
     if (cur_node == NULL)
@@ -293,10 +279,26 @@ bool vfs_mount(const char *source, const char *target, const char *fstype) {
         vfs_root_node = mount_gate;
         mount_gate->parent = NULL;
         strcpy(mount_gate->name, "/");
+
+        struct vfs_node *dot = vfs_new_node(mount_gate, ".");
+        dot->child = mount_gate;
+        dot->res   = mount_gate->res;
+
+        struct vfs_node *dotdot = vfs_new_node(mount_gate, "..");
+        dotdot->child = mount_gate;
+        dotdot->res   = mount_gate->res;
     } else {
         tgt_node->mount_gate = mount_gate;
         mount_gate->parent = tgt_node->parent;
         strcpy(mount_gate->name, tgt_node->name);
+
+        struct vfs_node *dot = vfs_new_node(mount_gate, ".");
+        dot->child = mount_gate;
+        dot->res   = mount_gate->res;
+
+        struct vfs_node *dotdot = vfs_new_node(mount_gate, "..");
+        dotdot->child = mount_gate->parent;
+        dotdot->res   = mount_gate->parent->res;
     }
 
     print("vfs: Mounted `%s` on `%s`, type: `%s`.\n", source, target, fstype);

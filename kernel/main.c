@@ -56,10 +56,15 @@ static void main_thread(struct stivale2_struct *stivale2_struct) {
 
     print("CPU %u\n", this_cpu->cpu_number);
 
-    const char *argv[] = { "/sbin/init", NULL };
-    const char *envp[] = { NULL };
-    sched_start_program(false, "/usr/bin/bash", argv, envp,
-                        "/dev/tty0", "/dev/tty0", "/dev/tty0");
+    const char *argv[] = { "/usr/bin/bash", NULL };
+    const char *envp[] = {
+        "HOME=/root",
+        "PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+        "TERM=linux",
+        NULL
+    };
+    sched_start_program(false, argv[0], argv, envp,
+                        "/dev/tty1", "/dev/tty1", "/dev/tty1");
 
     dequeue_and_yield(NULL);
 

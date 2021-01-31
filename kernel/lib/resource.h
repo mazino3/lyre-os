@@ -25,14 +25,9 @@ struct resource {
 struct vfs_node;
 
 struct handle {
-    enum {
-        HANDLE_RESOURCE,
-        HANDLE_DIRECTORY
-    } type;
-    union {
-        struct resource *res;
-        struct vfs_node *node;
-    };
+    int is_directory;
+    struct resource *res;
+    struct vfs_node *node;
     int refcount;
     off_t loc;
     int flags;
@@ -45,7 +40,7 @@ struct file_descriptor {
 
 void *resource_create(size_t actual_size);
 int fd_create(struct file_descriptor *fd, int oldfd);
-int fd_create_from_resource(struct resource *res, int flags, int oldfd);
+int fd_create_from_resource(struct vfs_node *dir, struct resource *res, int flags, int oldfd);
 int fd_close(int fildes);
 struct file_descriptor *fd_from_fd(int fildes);
 struct handle *handle_from_fd(int fildes);

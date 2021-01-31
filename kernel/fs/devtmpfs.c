@@ -15,7 +15,7 @@ struct tmpfs_resource {
 static ino_t inode_counter = 1;
 
 static struct vfs_node devfs_mount_gate = {
-    .name           = "/dev",
+    .name           = "",
     .res            = NULL,
     .mount_data     = NULL,
     .fs             = &devtmpfs,
@@ -45,6 +45,15 @@ static struct vfs_node *devtmpfs_mount(struct resource *device) {
 
     if (devfs_mount_gate.backing_dev_id == 0) {
         devfs_mount_gate.backing_dev_id = dev_new_id();
+    }
+
+    if (devfs_mount_gate.res == NULL) {
+        devfs_mount_gate.res = resource_create(sizeof(struct resource));
+        devfs_mount_gate.res->st.st_dev     = devfs_mount_gate.backing_dev_id;
+        devfs_mount_gate.res->st.st_mode    = S_IFDIR;
+        devfs_mount_gate.res->st.st_ino     = inode_counter++;
+        devfs_mount_gate.res->st.st_blksize = 512;
+        devfs_mount_gate.res->st.st_nlink   = 1;
     }
 
     return &devfs_mount_gate;

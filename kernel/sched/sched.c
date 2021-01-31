@@ -45,7 +45,7 @@ struct process *sched_start_program(bool execve,
                                     const char *stdin,
                                     const char *stdout,
                                     const char *stderr) {
-    struct resource *file = vfs_open(NULL, path, O_RDONLY, 0);
+    struct resource *file = vfs_open(NULL, NULL, path, O_RDONLY, 0);
     if (file == NULL)
         return NULL;
 
@@ -64,7 +64,7 @@ struct process *sched_start_program(bool execve,
     if (ld_path == NULL) {
         entry_point = (void *)auxval.at_entry;
     } else {
-        struct resource *ld = vfs_open(NULL, ld_path, O_RDONLY, 0);
+        struct resource *ld = vfs_open(NULL, NULL, ld_path, O_RDONLY, 0);
 
         struct auxval_t ld_auxval;
         if (!elf_load(new_pagemap, ld, 0x40000000, &ld_auxval, NULL))
@@ -82,21 +82,21 @@ struct process *sched_start_program(bool execve,
         new_process = sched_new_process(NULL, new_pagemap);
         new_process->ppid = this_cpu->current_thread->process->pid;
 
-        struct resource *stdin_res  = vfs_open(NULL, stdin,  O_RDONLY, 0);
+        struct resource *stdin_res  = vfs_open(NULL, NULL, stdin,  O_RDONLY, 0);
         struct handle *stdin_handle  = alloc(sizeof(struct handle));
         stdin_handle->res = stdin_res;
         struct file_descriptor *stdin_fd = alloc(sizeof(struct file_descriptor));
         stdin_fd->handle = stdin_handle;
         DYNARRAY_INSERT(new_process->fds, stdin_fd);
 
-        struct resource *stdout_res = vfs_open(NULL, stdout, O_WRONLY, 0);
+        struct resource *stdout_res = vfs_open(NULL, NULL, stdout, O_WRONLY, 0);
         struct handle *stdout_handle = alloc(sizeof(struct handle));
         stdout_handle->res = stdout_res;
         struct file_descriptor *stdout_fd = alloc(sizeof(struct file_descriptor));
         stdout_fd->handle = stdout_handle;
         DYNARRAY_INSERT(new_process->fds, stdout_fd);
 
-        struct resource *stderr_res = vfs_open(NULL, stderr, O_WRONLY, 0);
+        struct resource *stderr_res = vfs_open(NULL, NULL, stderr, O_WRONLY, 0);
         struct handle *stderr_handle = alloc(sizeof(struct handle));
         stderr_handle->res = stderr_res;
         struct file_descriptor *stderr_fd = alloc(sizeof(struct file_descriptor));

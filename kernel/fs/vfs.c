@@ -168,10 +168,22 @@ next:;
         goto epilogue;
 
     for (;;) {
+        bool mount_peek = false;
+        struct vfs_node *mount_parent;
+
+        if (cur_node->mount_gate != NULL) {
+            mount_peek = true;
+            mount_parent = cur_node;
+            cur_node = cur_node->mount_gate;
+        }
+
         if (strcmp(cur_node->name, elem)) {
             if (cur_node->next == NULL)
                 break;
-            cur_node = cur_node->next;
+            if (mount_peek)
+                cur_node = mount_parent->next;
+            else
+                cur_node = cur_node->next;
             continue;
         }
 
@@ -198,9 +210,6 @@ next:;
             return NULL;
         }
 
-        if (cur_node->mount_gate != NULL)
-            cur_node = cur_node->mount_gate;
-
         if (cur_node->child == NULL) {
             cur_node->child = cur_node->fs->populate(cur_node);
             if (cur_node->child == NULL) {
@@ -219,8 +228,9 @@ epilogue:
         if (last) {
             return vfs_new_node(cur_parent, elem);
         } else {
-            if (!(flags & CREATE_DEEP))
+            if (!(flags & CREATE_DEEP)) {
                 return NULL;
+            }
             cur_parent = vfs_mkdir(cur_parent, elem, 0755, false);
             goto next;
         }
@@ -230,6 +240,7 @@ epilogue:
         errno = ENOENT;
     else
         errno = ENOTDIR;
+
     return NULL;
 }
 
@@ -265,7 +276,7 @@ bool vfs_mount(const char *source, const char *target, const char *fstype) {
         if (!S_ISCHR(backing_dev_node->res->st.st_mode)
          && !S_ISBLK(backing_dev_node->res->st.st_mode))
             return false;
-        struct resource *src_handle = vfs_open(NULL, source, O_RDWR, 0);
+        struct resource *src_handle = vfs_open(NULL, NULL, source, O_RDWR, 0);
         if (src_handle == NULL)
             return false;
         backing_dev_id = backing_dev_node->res->st.st_rdev;
@@ -281,9 +292,12 @@ bool vfs_mount(const char *source, const char *target, const char *fstype) {
 
     if (fs->needs_backing_device != BACKING_DEV_NO_NOGEN) {
         mount_gate->backing_dev_id = backing_dev_id;
+        mount_gate->res->st.st_dev = backing_dev_id;
     }
 
     tgt_node->mount_gate = mount_gate;
+    mount_gate->parent = tgt_node->parent;
+    strcpy(mount_gate->name, tgt_node->name);
 
     print("vfs: Mounted `%s` on `%s`, type: `%s`.\n", source, target, fstype);
 
@@ -370,7 +384,7 @@ static struct vfs_node *get_parent_dir(int dirfd, const char *path) {
             if (dir_handle == NULL)
                 return NULL;
 
-            if (dir_handle->type != HANDLE_DIRECTORY) {
+            if (!dir_handle->is_directory) {
                 errno = ENOTDIR;
                 return NULL;
             }
@@ -494,14 +508,15 @@ void syscall_openat(struct cpu_gpr_context *ctx) {
 
     int creat_flags = flags & FILE_CREATION_FLAGS_MASK;
 
-    struct resource *res = vfs_open(parent, path, creat_flags, mode);
+    struct vfs_node *dir = NULL;
+    struct resource *res = vfs_open(&dir, parent, path, creat_flags, mode);
 
     if (res == NULL) {
         ctx->rax = (uint64_t)-1;
         return;
     }
 
-    int ret = fd_create_from_resource(res, flags, -1);
+    int ret = fd_create_from_resource(dir, res, flags, -1);
 
     ctx->rax = (uint64_t)ret;
 }
@@ -692,7 +707,7 @@ void syscall_seek(struct cpu_gpr_context *ctx) {
     LOCK_RELEASE(vfs_lock);
 }
 
-struct resource *vfs_open(struct vfs_node *parent, const char *path, int oflags, mode_t mode) {
+struct resource *vfs_open(struct vfs_node **dir, struct vfs_node *parent, const char *path, int oflags, mode_t mode) {
     SPINLOCK_ACQUIRE(vfs_lock);
 
     parent = parent == NULL ? this_cpu->current_thread->process->current_directory
@@ -714,6 +729,10 @@ struct resource *vfs_open(struct vfs_node *parent, const char *path, int oflags,
     }
 
     struct resource *res = path_node->res;
+
+    if (S_ISDIR(res->st.st_mode) && dir != NULL) {
+        *dir = path_node;
+    }
 
     SPINLOCK_ACQUIRE(res->lock);
     res->refcount++;

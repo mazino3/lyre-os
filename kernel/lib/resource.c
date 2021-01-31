@@ -67,13 +67,18 @@ void *resource_create(size_t actual_size) {
     return new;
 }
 
-int fd_create_from_resource(struct resource *res, int flags, int oldfd) {
+int fd_create_from_resource(struct vfs_node *dir, struct resource *res, int flags, int oldfd) {
     struct handle *handle = alloc(sizeof(struct handle));
 
     handle->res = res;
     handle->loc = 0;
     handle->flags = flags & FILE_STATUS_FLAGS_MASK;
     handle->refcount = 1;
+
+    if (dir != NULL) {
+        handle->is_directory = true;
+        handle->node = dir;
+    }
 
     struct file_descriptor *fd = alloc(sizeof(struct file_descriptor));
 

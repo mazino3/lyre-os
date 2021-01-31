@@ -72,8 +72,6 @@ cp -r root/* "$BUILD_DIR"/system-root/
 install -m 644 "$LYRE_DIR"/lyre.elf "$BUILD_DIR"/system-root/
 install -d "$BUILD_DIR"/system-root/etc
 install -m 644 /etc/localtime "$BUILD_DIR"/system-root/etc/
-install -d "$BUILD_DIR"/system-root/lib
-install "$BUILD_DIR"/system-root/usr/lib/ld.so "$BUILD_DIR"/system-root/lib/
 
 ( cd "$BUILD_DIR"/system-root && tar -zcf ../../initramfs.tar.gz * )
 

@@ -79,7 +79,7 @@ bool initramfs_init(struct stivale2_struct_tag_modules *modules_tag) {
                 break;
             }
             case USTAR_FILE: {
-                struct resource *r = vfs_open(NULL, h->name, O_RDWR | O_CREAT,
+                struct resource *r = vfs_open(NULL, NULL, h->name, O_RDWR | O_CREAT,
                                               octal_to_int(h->mode));
                 void *buf = (void*)h + 512;
                 r->write(r, buf, 0, size);

@@ -20,8 +20,8 @@ bool dev_add_new(struct resource *device, const char *dev_name) {
     return devtmpfs_add_device(device, dev_name);
 }
 
-bool dev_init(void) {
+bool dev_init(struct stivale2_struct_tag_framebuffer *framebuffer_tag) {
     e9_init();
-    init_drm();
+    init_drm(framebuffer_tag);
     return true;
 }

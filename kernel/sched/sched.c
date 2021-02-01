@@ -131,8 +131,8 @@ struct process *sched_start_program(bool execve,
 
 void syscall_execve(struct cpu_gpr_context *ctx) {
     const char *path = (const char *) ctx->rdi;
-    char      **argv = (char **)      ctx->rsi;
-    char      **envp = (char **)      ctx->rdx;
+    const char      **argv = (const char **)      ctx->rsi;
+    const char      **envp = (const char **)      ctx->rdx;
 
     sched_start_program(true, path, argv, envp, NULL, NULL, NULL);
 
@@ -382,13 +382,13 @@ struct thread *sched_new_thread(struct thread *new_thread,
         size_t nenv = 0;
         for (const char **elem = envp; *elem; elem++) {
             stack = (void*)stack - (strlen(*elem) + 1);
-            strcpy(stack, *elem);
+            strcpy((char*)stack, *elem);
             nenv++;
         }
         size_t nargs = 0;
         for (const char **elem = argv; *elem; elem++) {
             stack = (void*)stack - (strlen(*elem) + 1);
-            strcpy(stack, *elem);
+            strcpy((char*)stack, *elem);
             nargs++;
         }
 
@@ -499,7 +499,7 @@ static struct thread *get_next_thread(ssize_t *index) {
         *index = 0;
     }
 
-    size_t i = *index + 1;
+    ssize_t i = *index + 1;
     for (;;) {
         if (i == MAX_RUNNING_THREADS) {
             i = 0;

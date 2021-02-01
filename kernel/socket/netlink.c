@@ -9,7 +9,7 @@ struct netlink_socket {
     struct resource;
 
     int protocol;
-    struct sockaddr_nl *addr;
+    const struct sockaddr_nl *addr;
 };
 
 static int netlink_socket_bind(struct resource *_this, const struct sockaddr *_addr, socklen_t addrlen) {

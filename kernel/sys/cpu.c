@@ -106,7 +106,7 @@ static void cpu_init(struct stivale2_smp_info *smp_info) {
     // Flags mask
     wrmsr(0xc0000084, (uint64_t)~((uint32_t)0x002));
 
-    uint32_t a, b, c, d;
+    uint32_t a = 0, b = 0, c = 0, d = 0;
     cpuid(1, 0, &a, &b, &c, &d);
 
     if ((c & CPUID_XSAVE)) {

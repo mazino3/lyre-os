@@ -6,6 +6,7 @@
 #include <lib/math.h>
 #include <lib/lock.h>
 #include <lib/builtins.h>
+#include <lib/print.h>
 
 static void *bitmap;
 static size_t last_used_index = 0;
@@ -18,7 +19,7 @@ void pmm_reclaim_memory(struct stivale2_mmap_entry *memmap, size_t memmap_entrie
         if (memmap[i].type != STIVALE2_MMAP_BOOTLOADER_RECLAIMABLE)
             continue;
 
-        pmm_free(memmap[i].base, memmap[i].length / PAGE_SIZE);
+        pmm_free((void*)memmap[i].base, memmap[i].length / PAGE_SIZE);
 
         print("pmm: Reclaimed %U pages at %X\n", memmap[i].length / PAGE_SIZE,
                                                  memmap[i].base);

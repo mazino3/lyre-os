@@ -266,8 +266,7 @@ void syscall_exit(struct cpu_gpr_context *ctx) {
     LOCKED_WRITE(process->status, status);
     event_trigger(process->event);
 
-    // TODO self destroy thread, just dequeue for now but it's a memleak
-    sched_dequeue_and_yield();
+    sched_dequeue_and_die();
 
     for (;;);
 }
@@ -483,6 +482,16 @@ void sched_dequeue_and_yield(void) {
     asm ("cli");
     sched_dequeue(this_cpu->current_thread);
     sched_yield();
+}
+
+__attribute__((noreturn))
+void sched_dequeue_and_die(void) {
+    asm ("cli");
+    sched_dequeue(this_cpu->current_thread);
+    free(this_cpu->current_thread);
+    this_cpu->current_thread = NULL;
+    sched_yield();
+    for (;;);
 }
 
 static struct thread *get_next_thread(ssize_t *index) {

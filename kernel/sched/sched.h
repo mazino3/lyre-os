@@ -79,5 +79,6 @@ void sched_yield(void);
 bool sched_queue(struct thread *thread);
 bool sched_dequeue(struct thread *thread);
 void sched_dequeue_and_yield(void);
+__attribute__((noreturn)) void sched_dequeue_and_die(void);
 
 #endif

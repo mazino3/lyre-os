@@ -16,7 +16,7 @@ bool events_await(struct event **events, ssize_t *which, size_t event_count,
                   bool no_block) {
     struct thread *thread = this_cpu->current_thread;
 
-    LOCK_RELEASE(thread->event_block_requeue);
+    LOCK_RELEASE(thread->event_block_dequeue);
     LOCK_RELEASE(thread->event_occurred);
 
     struct event_listener *listeners[event_count];
@@ -52,7 +52,8 @@ bool events_await(struct event **events, ssize_t *which, size_t event_count,
         goto unarm_listeners;
     }
 
-    dequeue_and_yield(&thread->event_block_requeue);
+    if (LOCK_ACQUIRE(thread->event_block_dequeue))
+        sched_dequeue_and_yield();
 
 unarm_listeners:
     for (size_t i = 0; i < listeners_armed; i++) {
@@ -94,8 +95,8 @@ void event_trigger(struct event *event) {
 
         struct thread *thread = listener->thread;
 
-        LOCK_ACQUIRE(thread->event_block_requeue);
-        sched_queue_back(thread);
+        LOCK_ACQUIRE(thread->event_block_dequeue);
+        sched_queue(thread);
 
         LOCK_RELEASE(listener->lock);
         LOCK_RELEASE(listener->ready);
@@ -103,6 +104,9 @@ void event_trigger(struct event *event) {
 
     if (pending) {
         LOCKED_INC(event->pending);
+    } else {
+        if (this_cpu->current_thread == NULL)
+            sched_yield();
     }
 }
 

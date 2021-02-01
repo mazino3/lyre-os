@@ -55,8 +55,8 @@ void idt_register_interrupt_handler(size_t vec, void *handler, uint8_t ist, uint
 struct event *int_event[256];
 
 void idt_raise_int_event(size_t i) {
-    event_trigger(int_event[i]);
     lapic_eoi();
+    event_trigger(int_event[i]);
 }
 
 void idt_init(void) {

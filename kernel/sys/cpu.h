@@ -40,6 +40,7 @@ struct cpu_local {
     void   (*fpu_restore)(void *);
     struct thread *current_thread;
     ssize_t last_run_queue_index;
+    int yield_await;
 };
 
 extern struct cpu_local *cpu_locals;

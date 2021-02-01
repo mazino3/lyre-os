@@ -9,23 +9,36 @@ typedef struct {
     uint32_t bits;
 } lock_t;
 
-#define LOCKED_READ(VAR) ({ \
-    typeof(VAR) ret = 0;    \
-    asm volatile (          \
-        "lock xadd %1, %0"  \
-        : "+r" (ret)        \
-        : "m" (VAR)         \
-        : "memory"          \
-    );                      \
-    ret;                    \
+#define CAS(HERE, IFTHIS, WRITETHIS) ({ \
+    bool ret;                           \
+    typeof(IFTHIS) ifthis = IFTHIS;     \
+    asm volatile (                      \
+        "lock cmpxchg %0, %3"           \
+        : "+m"(HERE), "+a"(ifthis),     \
+          "=@ccz" (ret)                 \
+        : "r"(WRITETHIS)                \
+        : "memory"                      \
+    );                                  \
+    ret;                                \
+})
+
+#define LOCKED_READ(VAR) ({    \
+    typeof(VAR) ret = 0;       \
+    asm volatile (             \
+        "lock xadd %1, %0"     \
+        : "+r"(ret), "+m"(VAR) \
+        :                      \
+        : "memory"             \
+    );                         \
+    ret;                       \
 })
 
 #define LOCKED_WRITE(VAR, VAL) ({ \
     typeof(VAR) ret = VAL;        \
     asm volatile (                \
         "lock xchg %1, %0"        \
-        : "+r" (ret)              \
-        : "m" (VAR)               \
+        : "+r"(ret), "+m"(VAR)    \
+        :                         \
         : "memory"                \
     );                            \
     ret;                          \

@@ -18,6 +18,7 @@ struct process;
 struct thread {
     tid_t tid;
     lock_t lock;
+    bool is_queued;
     size_t timeslice;
     struct cpu_gpr_context ctx;
     struct process *process;
@@ -25,9 +26,8 @@ struct thread {
     uintptr_t user_fs;
     uintptr_t user_stack;
     uintptr_t kernel_stack;
-    lock_t event_block_requeue;
+    lock_t event_block_dequeue;
     lock_t event_occurred;
-    int yield_await;
 };
 
 struct process {
@@ -75,8 +75,9 @@ struct thread *sched_new_thread(struct thread *new_thread,
 __attribute__((noreturn))
 void sched_spinup(struct cpu_gpr_context *);
 
-bool sched_queue_back(struct thread *thread);
-void dequeue_and_yield(lock_t *lock);
-void yield(void);
+void sched_yield(void);
+bool sched_queue(struct thread *thread);
+bool sched_dequeue(struct thread *thread);
+void sched_dequeue_and_yield(void);
 
 #endif

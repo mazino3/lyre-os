@@ -21,7 +21,8 @@ static uint8_t reschedule_vector;
 
 DYNARRAY_STATIC(struct process *, processes);
 
-DYNARRAY_STATIC(struct thread *, running_queue);
+#define MAX_RUNNING_THREADS 8192
+static struct thread *running_queue[MAX_RUNNING_THREADS];
 
 struct process *kernel_process;
 
@@ -161,7 +162,7 @@ void syscall_fork(struct cpu_gpr_context *ctx) {
 
     SPINLOCK_ACQUIRE(sched_lock);
 
-    DYNARRAY_PUSHBACK(running_queue, new_thread);
+    sched_queue(new_thread);
 
     new_thread->tid = DYNARRAY_INSERT(new_process->threads, new_thread);
 
@@ -266,7 +267,7 @@ void syscall_exit(struct cpu_gpr_context *ctx) {
     event_trigger(process->event);
 
     // TODO self destroy thread, just dequeue for now but it's a memleak
-    dequeue_and_yield(NULL);
+    sched_dequeue_and_yield();
 
     for (;;);
 }
@@ -437,7 +438,7 @@ struct thread *sched_new_thread(struct thread *new_thread,
 
     if (start) {
         SPINLOCK_ACQUIRE(sched_lock);
-        DYNARRAY_PUSHBACK(running_queue, new_thread);
+        sched_queue(new_thread);
         new_thread->tid = DYNARRAY_INSERT(proc->threads, new_thread);
         LOCK_RELEASE(sched_lock);
     }
@@ -445,77 +446,67 @@ struct thread *sched_new_thread(struct thread *new_thread,
     return new_thread;
 }
 
-void dequeue_and_yield(lock_t *lock) {
-    SPINLOCK_ACQUIRE(sched_lock);
-
-    struct thread *thread = this_cpu->current_thread;
-
-    ssize_t index = DYNARRAY_GET_INDEX_BY_VALUE(running_queue, thread);
-
-    DYNARRAY_REMOVE_AND_PACK(running_queue, index);
-
-    LOCK_RELEASE(thread->lock);
-
+void sched_yield(void) {
     asm ("cli");
-
-    LOCK_RELEASE(sched_lock);
-
-    if (lock != NULL && !LOCK_ACQUIRE(*lock)) {
-        asm ("sti");
-        return;
-    }
-
-    yield();
-}
-
-void yield(void) {
-    asm ("cli");
-    LOCKED_WRITE(this_cpu->current_thread->yield_await, 1);
+    LOCKED_WRITE(this_cpu->yield_await, 1);
     lapic_timer_oneshot(reschedule_vector, 1);
     asm ("sti");
-    while (LOCKED_READ(this_cpu->current_thread->yield_await) != 0)
+    while (LOCKED_READ(this_cpu->yield_await) != 0)
         asm ("hlt");
 }
 
-bool sched_queue_back(struct thread *thread) {
-    SPINLOCK_ACQUIRE(sched_lock);
-
-    ssize_t index = DYNARRAY_GET_INDEX_BY_VALUE(running_queue, thread);
-
-    if (index != -1) {
-        LOCK_RELEASE(sched_lock);
-        return false;
+bool sched_queue(struct thread *thread) {
+    if (thread->is_queued == true)
+        return true;
+    for (size_t i = 0; i < MAX_RUNNING_THREADS; i++) {
+        if (CAS(running_queue[i], NULL, thread)) {
+            thread->is_queued = true;
+            return true;
+        }
     }
-
-    DYNARRAY_PUSHBACK(running_queue, thread);
-
-    LOCK_RELEASE(sched_lock);
-
-    return true;
+    return false;
 }
 
-static ssize_t get_next_thread(ssize_t index) {
-    if (running_queue.length == 0)
-        return -1;
+bool sched_dequeue(struct thread *thread) {
+    if (thread->is_queued == false)
+        return true;
+    for (size_t i = 0; i < MAX_RUNNING_THREADS; i++) {
+        if (CAS(running_queue[i], thread, NULL)) {
+            thread->is_queued = false;
+            return true;
+        }
+    }
+    return false;
+}
 
-    if (index == -1) {
-        index = 0;
-    } else {
-        index++;
+void sched_dequeue_and_yield(void) {
+    asm ("cli");
+    sched_dequeue(this_cpu->current_thread);
+    sched_yield();
+}
+
+static struct thread *get_next_thread(ssize_t *index) {
+    if (*index == -1) {
+        *index = 0;
     }
 
-    for (size_t i = 0; i < running_queue.length + 1; i++) {
-        if ((size_t)index >= running_queue.length) {
-            index = 0;
+    size_t i = *index + 1;
+    for (;;) {
+        if (i == MAX_RUNNING_THREADS) {
+            i = 0;
         }
-        struct thread *thread = running_queue.storage[index];
-        if (LOCK_ACQUIRE(thread->lock)) {
-            return index;
+        struct thread *thread = LOCKED_READ(running_queue[i]);
+        if (thread != NULL && LOCK_ACQUIRE(thread->lock)) {
+            *index = i;
+            return thread;
         }
-        index++;
+        i++;
+        if (i == *index + 1)
+            break;
     }
 
-    return -1;
+    *index = -1;
+    return NULL;
 }
 
 void reschedule(struct cpu_gpr_context *ctx) {
@@ -536,31 +527,28 @@ void reschedule(struct cpu_gpr_context *ctx) {
         return;
     }
 
+    LOCKED_WRITE(this_cpu->yield_await, 0);
+
     if (current_thread != NULL) {
         current_thread->ctx = *ctx;
         current_thread->user_gs = get_user_gs();
         current_thread->user_fs = get_user_fs();
         current_thread->user_stack = cpu_local->user_stack;
-        LOCKED_WRITE(this_cpu->current_thread->yield_await, 0);
         LOCK_RELEASE(current_thread->lock);
     }
 
-    ssize_t next_thread_index = get_next_thread(cpu_local->last_run_queue_index);
+    cpu_local->current_thread =
+            get_next_thread(&cpu_local->last_run_queue_index);
+    current_thread = cpu_local->current_thread;
 
-    cpu_local->last_run_queue_index = next_thread_index;
-
-    if (next_thread_index == -1) {
+    if (current_thread == NULL) {
         // We're idle, get a reschedule interrupt in 20 milliseconds
         lapic_eoi();
         lapic_timer_oneshot(reschedule_vector, 20000);
-        cpu_local->current_thread = NULL;
         LOCK_RELEASE(sched_lock);
         asm ("sti");
         for (;;) asm ("hlt");
     }
-
-    current_thread = running_queue.storage[next_thread_index];
-    cpu_local->current_thread = current_thread;
 
     set_user_gs(current_thread->user_gs);
     set_user_fs(current_thread->user_fs);

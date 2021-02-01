@@ -44,7 +44,7 @@ int main(void) {
     drmModeAddFB(card, conn->modes[0].hdisplay, conn->modes[0].vdisplay, 24, 32, 32, creq.handle, &fb_id);
     mreq.handle = creq.handle;
     drmIoctl(card, DRM_IOCTL_MODE_MAP_DUMB, &mreq);
-    size_t addr = mmap(0, creq.size, PROT_READ | PROT_WRITE, MAP_SHARED,
+    size_t addr = (size_t)mmap(0, creq.size, PROT_READ | PROT_WRITE, MAP_SHARED,
 		        card, mreq.offset);
 
     uint32_t conns[1] = {1};

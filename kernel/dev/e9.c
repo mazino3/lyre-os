@@ -6,6 +6,7 @@
 #include <lib/resource.h>
 
 static ssize_t e9_write(struct resource *this, const void *buf, off_t off, size_t count) {
+    (void)this;
     for (size_t i = 0; i < count; i++) {
         outb(0xe9, ((char*)buf)[i]);
     }

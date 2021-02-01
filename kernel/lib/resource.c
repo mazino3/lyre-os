@@ -95,14 +95,14 @@ int fd_create(struct file_descriptor *fd, int oldfd) {
         return DYNARRAY_INSERT(process->fds, fd);
     } else {
         fd_close(oldfd);
-        return DYNARRAY_INSERT_AT(process->fds, fd, oldfd);
+        return DYNARRAY_INSERT_AT(process->fds, fd, (size_t)oldfd);
     }
 }
 
 int fd_create_least(struct file_descriptor *fd, int oldfd) {
     struct process *process = this_cpu->current_thread->process;
 
-    return DYNARRAY_INSERT_LEAST(process->fds, fd, oldfd);
+    return DYNARRAY_INSERT_LEAST(process->fds, fd, (size_t)oldfd);
 }
 
 struct file_descriptor *fd_from_fd(int fildes) {
@@ -146,4 +146,5 @@ int fd_close(int fildes) {
     free(fd);
 
     this_cpu->current_thread->process->fds.storage[fildes] = NULL;
+    return 0;
 }

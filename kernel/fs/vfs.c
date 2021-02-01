@@ -247,7 +247,7 @@ bool vfs_mount(const char *source, const char *target, const char *fstype) {
         }
     }
 
-    dev_t backing_dev_id;
+    dev_t backing_dev_id = 0;
     struct resource *src_handle = NULL;
     if (fs->needs_backing_device == BACKING_DEV_YES) {
         struct vfs_node *backing_dev_node = path2node(NULL, source, NO_CREATE);

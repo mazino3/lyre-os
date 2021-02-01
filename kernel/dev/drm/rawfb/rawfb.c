@@ -61,7 +61,7 @@ static int rawfb_ioctl(struct resource *this, int request, void *argp) {
             if (!res->fb_id_ptr) {
                 res->count_fbs = this_drm->num_fbs;
             } else {
-                for (int i = 0; i < fbs.length; i++) {
+                for (size_t i = 0; i < fbs.length; i++) {
                     if (fbs.storage[i]->valid) {
                         ((uint32_t*)res->fb_id_ptr)[i] = i;
                     }
@@ -146,6 +146,7 @@ static int rawfb_ioctl(struct resource *this, int request, void *argp) {
             res->mode.vdisplay = vesa_height;
             res->x = 0;
             res->y = 0;
+            return 0;
         }
 
         case DRM_IOCTL_MODE_SETCRTC : {
@@ -161,6 +162,7 @@ static int rawfb_ioctl(struct resource *this, int request, void *argp) {
 //            memset(fb_data, 0xFF, fb_size);
             memcpy((void*)(vesa_framebuffer_addr), fb_data, fb_size);
             print("modeset crtc %x\n", fb_size);
+            return 0;
         }
         
         case DRM_IOCTL_MODE_CREATE_DUMB : {
@@ -226,6 +228,7 @@ static int rawfb_ioctl(struct resource *this, int request, void *argp) {
             }
             free(dumb_buffers.storage[res->handle]->buffer);
             dumb_buffers.storage[res->handle]->valid = false;
+            return 0;
         }
 
         case DRM_IOCTL_MODE_RMFB : {
@@ -237,6 +240,7 @@ static int rawfb_ioctl(struct resource *this, int request, void *argp) {
             }
             fbs.storage[*id]->valid = false;
             this_drm->num_fbs--;
+            return 0;
         }
 
         default: {
@@ -244,6 +248,7 @@ static int rawfb_ioctl(struct resource *this, int request, void *argp) {
             return ENXIO;
         }
     }
+    return 0;
 }
 
 void init_rawfbdev(struct stivale2_struct_tag_framebuffer *framebuffer_tag) {

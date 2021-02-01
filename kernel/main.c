@@ -19,6 +19,7 @@
 #include <misc/initramfs.h>
 #include <lib/bitmap_font.h>
 #include <dev/console.h>
+#include <dev/dev.h>
 
 __attribute__((noreturn))
 static void main_thread(struct stivale2_struct *stivale2_struct) {

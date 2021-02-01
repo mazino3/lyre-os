@@ -5,6 +5,7 @@
 #include <lib/builtins.h>
 #include <lib/resource.h>
 #include <lib/lock.h>
+#include <dev/dev.h>
 
 struct tmpfs_resource {
     struct resource;

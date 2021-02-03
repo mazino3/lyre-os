@@ -77,7 +77,7 @@ index 0000000..ee7a794
 +
 diff --git a/ports/mlibc-workdir/sysdeps/lyre/generic/generic.cpp b/ports/mlibc-workdir/sysdeps/lyre/generic/generic.cpp
 new file mode 100644
-index 0000000..f13ca7b
+index 0000000..e088d44
 --- /dev/null
 +++ b/ports/mlibc-workdir/sysdeps/lyre/generic/generic.cpp
 @@ -0,0 +1,407 @@
@@ -173,7 +173,7 @@ index 0000000..f13ca7b
 +
 +void sys_libc_panic() {
 +    sys_libc_log("\nMLIBC PANIC\n");
-+    for (;;);
++    sys_exit(255);
 +}
 +
 +void sys_exit(int status) {

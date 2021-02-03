@@ -20,74 +20,6 @@ bool vfs_install_fs(struct filesystem *fs) {
     return true;
 }
 
-/* Convert a relative path into an absolute path.
-   This is a freestanding function and can be used for any purpose :) */
-void vfs_get_absolute_path(char *path_ptr, const char *path, const char *pwd) {
-    char *orig_ptr = path_ptr;
-
-    if (!*path) {
-        strcpy(path_ptr, pwd);
-        return;
-    }
-
-    if (*path != '/') {
-        strcpy(path_ptr, pwd);
-        path_ptr += strlen(path_ptr);
-    } else {
-        *path_ptr = '/';
-        path_ptr++;
-        path++;
-    }
-
-    goto first_run;
-
-    for (;;) {
-        switch (*path) {
-            case '/':
-                path++;
-first_run:
-                if (*path == '/') continue;
-                if ((!strncmp(path, ".\0", 2))
-                ||  (!strncmp(path, "./\0", 3))) {
-                    goto term;
-                }
-                if ((!strncmp(path, "..\0", 3))
-                ||  (!strncmp(path, "../\0", 4))) {
-                    while (*path_ptr != '/') path_ptr--;
-                    if (path_ptr == orig_ptr) path_ptr++;
-                    goto term;
-                }
-                if (!strncmp(path, "../", 3)) {
-                    while (*path_ptr != '/') path_ptr--;
-                    if (path_ptr == orig_ptr) path_ptr++;
-                    path += 2;
-                    *path_ptr = 0;
-                    continue;
-                }
-                if (!strncmp(path, "./", 2)) {
-                    path += 1;
-                    continue;
-                }
-                if (((path_ptr - 1) != orig_ptr) && (*(path_ptr - 1) != '/')) {
-                    *path_ptr = '/';
-                    path_ptr++;
-                }
-                continue;
-            case '\0':
-term:
-                if ((*(path_ptr - 1) == '/') && ((path_ptr - 1) != orig_ptr))
-                    path_ptr--;
-                *path_ptr = 0;
-                return;
-            default:
-                *path_ptr = *path;
-                path++;
-                path_ptr++;
-                continue;
-        }
-    }
-}
-
 struct vfs_node *vfs_root_node;
 
 #define NO_CREATE      0b0000
@@ -673,10 +605,18 @@ void syscall_seek(struct cpu_gpr_context *ctx) {
 
     struct handle *handle = handle_from_fd(fd);
 
-    if (handle->res->st.st_size == 0) {
-        ctx->rax = 0;
+    if (handle == NULL) {
         LOCK_RELEASE(vfs_lock);
+        ctx->rax = (uint64_t)-1;
         return;
+    }
+
+    switch (handle->res->st.st_mode & S_IFMT) {
+        case S_IFCHR: case S_IFIFO: case S_IFPIPE: case S_IFSOCK:
+            errno = ESPIPE;
+            ctx->rax = (uint64_t)-1;
+            LOCK_RELEASE(vfs_lock);
+            return;
     }
 
     off_t base;
@@ -697,7 +637,7 @@ void syscall_seek(struct cpu_gpr_context *ctx) {
             return;
     }
 
-    if (base < 0 || base >= handle->res->st.st_size) {
+    if (base < 0 || base > handle->res->st.st_size) {
         errno = EINVAL;
         ctx->rax = (uint64_t)-1;
         LOCK_RELEASE(vfs_lock);

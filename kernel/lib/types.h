@@ -56,6 +56,7 @@ struct timespec {
 #define S_IFDIR  0x04000
 #define S_IFLNK  0x0A000
 #define S_IFSOCK 0x0C000
+#define S_IFPIPE 0x03000
 
 #define S_ISBLK(m)  (((m) & S_IFMT) == S_IFBLK)
 #define S_ISCHR(m)  (((m) & S_IFMT) == S_IFCHR)

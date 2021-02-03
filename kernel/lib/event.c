@@ -105,8 +105,8 @@ void event_trigger(struct event *event) {
     if (pending) {
         LOCKED_INC(event->pending);
     } else {
-        if (this_cpu->current_thread == NULL)
-            sched_yield();
+        /*if (this_cpu->current_thread == NULL)
+            sched_yield();*/
     }
 }
 

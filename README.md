@@ -1,9 +1,13 @@
 lyre
 ====
 
-lyre is a kernel and distro which aims at running xfce.
+lyre is an x86 kernel and distribution powered by mlibc, GNU userland tools, and
+other common *nix software.
 
-Yes, running xfce is lyre's main goal.
+Get Involved
+============
+
+Join our Discord server! https://discord.gg/2kdk3CbADg
 
 Building
 ========

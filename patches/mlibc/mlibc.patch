@@ -77,10 +77,10 @@ index 0000000..ee7a794
 +
 diff --git a/ports/mlibc-workdir/sysdeps/lyre/generic/generic.cpp b/ports/mlibc-workdir/sysdeps/lyre/generic/generic.cpp
 new file mode 100644
-index 0000000..e088d44
+index 0000000..ddc5004
 --- /dev/null
 +++ b/ports/mlibc-workdir/sysdeps/lyre/generic/generic.cpp
-@@ -0,0 +1,407 @@
+@@ -0,0 +1,430 @@
 +#include <bits/ensure.h>
 +#include <mlibc/debug.hpp>
 +#include <mlibc/all-sysdeps.hpp>
@@ -163,6 +163,7 @@ index 0000000..e088d44
 +#define SYSCALL_DUP3        21
 +#define SYSCALL_WAITPID     22
 +#define SYSCALL_EXIT        23
++#define SYSCALL_READDIR     24
 +
 +namespace mlibc {
 +
@@ -222,6 +223,28 @@ index 0000000..e088d44
 +
 +int sys_open(const char *path, int flags, int *fd) {
 +    return sys_openat(AT_FDCWD, path, flags, fd);
++}
++
++int sys_open_dir(const char *path, int *handle) {
++	return sys_open(path, 0, handle);
++}
++
++int sys_read_entries(int fd, void *buffer, size_t max_size, size_t *bytes_read) {
++    int ret;
++    int errno;
++
++    SYSCALL2(SYSCALL_READDIR, fd, buffer);
++
++    if (ret == -1 && errno == 0) {
++        /* end of dir */
++        *bytes_read = 0;
++        return 0;
++    } else if (ret == -1) {
++        return errno;
++    }
++
++    *bytes_read = sizeof(struct dirent);
++    return 0;
 +}
 +
 +int sys_close(int fd) {

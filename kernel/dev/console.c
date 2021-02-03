@@ -70,7 +70,7 @@ static uint32_t ansi_colours[] = {
     0x00aa0000,              // red
     0x0000aa00,              // green
     0x00aa5500,              // brown
-    0x000000aa,              // blue
+    0x00006888,              // blue
     0x00aa00aa,              // magenta
     0x0000aaaa,              // cyan
     0x00aaaaaa               // grey

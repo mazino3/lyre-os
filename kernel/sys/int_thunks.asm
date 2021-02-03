@@ -103,6 +103,8 @@ syscall_table:
     dq syscall_waitpid
     extern syscall_exit
     dq syscall_exit
+    extern syscall_readdir
+    dq syscall_readdir
   .end:
 
 section .rodata

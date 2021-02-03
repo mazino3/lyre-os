@@ -23,6 +23,7 @@ struct filesystem {
 };
 
 struct vfs_node {
+    struct vfs_node *redir;
     char name[NAME_MAX];
     char target[NAME_MAX];
     struct resource *res;

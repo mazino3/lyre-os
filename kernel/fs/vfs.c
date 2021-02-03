@@ -43,7 +43,11 @@ static struct vfs_node *path2node(struct vfs_node *parent, const char *_path, in
     char *path = l_path;
 
     struct vfs_node *cur_parent = *path == '/' || parent == NULL ? vfs_root_node : parent;
-    if (cur_parent->mount_gate)
+
+    while (cur_parent->redir != NULL)
+        cur_parent = cur_parent->redir;
+
+    if (cur_parent->mount_gate != NULL)
         cur_parent = cur_parent->mount_gate;
 
     struct vfs_node *cur_node = cur_parent->child;
@@ -78,7 +82,8 @@ next:;
             cur_node = cur_node->mount_gate;
         }
 
-        if (strcmp(cur_node->name, elem)) {
+        if (strcmp(cur_node->name, elem) != 0) {
+            // If match found
             if (mount_peek)
                 cur_node = mount_parent->next;
             else
@@ -87,6 +92,9 @@ next:;
                 break;
             continue;
         }
+
+        while (cur_node->redir != NULL)
+            cur_node = cur_node->redir;
 
         if (last) {
             if (flags & FAIL_IF_EXISTS) {
@@ -213,24 +221,20 @@ bool vfs_mount(const char *source, const char *target, const char *fstype) {
         strcpy(mount_gate->name, "/");
 
         struct vfs_node *dot = vfs_new_node(mount_gate, ".");
-        dot->child = mount_gate;
-        dot->res   = mount_gate->res;
+        dot->redir = mount_gate;
 
         struct vfs_node *dotdot = vfs_new_node(mount_gate, "..");
-        dotdot->child = mount_gate;
-        dotdot->res   = mount_gate->res;
+        dotdot->redir = mount_gate;
     } else {
         tgt_node->mount_gate = mount_gate;
         mount_gate->parent = tgt_node->parent;
         strcpy(mount_gate->name, tgt_node->name);
 
         struct vfs_node *dot = vfs_new_node(mount_gate, ".");
-        dot->child = mount_gate;
-        dot->res   = mount_gate->res;
+        dot->redir = mount_gate;
 
         struct vfs_node *dotdot = vfs_new_node(mount_gate, "..");
-        dotdot->child = mount_gate->parent;
-        dotdot->res   = mount_gate->parent->res;
+        dotdot->redir = mount_gate->parent;
     }
 
     print("vfs: Mounted `%s` on `%s`, type: `%s`.\n", source, target, fstype);
@@ -255,12 +259,10 @@ struct vfs_node *vfs_mkdir(struct vfs_node *parent, const char *name, mode_t mod
     new_dir->res = new_dir->fs->mkdir(new_dir, mode);
 
     struct vfs_node *dot = vfs_new_node(new_dir, ".");
-    dot->child = new_dir;
-    dot->res   = new_dir->res;
+    dot->redir = new_dir;
 
     struct vfs_node *dotdot = vfs_new_node(new_dir, "..");
-    dotdot->child = parent;
-    dotdot->res   = parent->res;
+    dotdot->redir = new_dir->parent;
 
     return new_dir;
 }
@@ -717,6 +719,61 @@ void vfs_dump_nodes(struct vfs_node *node, const char *parent) {
             vfs_dump_nodes(cur_node->child, cur_node->name);
         }
     }
+}
+
+void syscall_readdir(struct cpu_gpr_context *ctx) {
+    int            fd  = (int)             ctx->rdi;
+    struct dirent *buf = (struct dirent *) ctx->rsi;
+
+    struct handle *dir_handle = handle_from_fd(fd);
+    if (dir_handle == NULL) {
+        ctx->rax = (uint64_t)-1;
+        return;
+    }
+
+    if (!dir_handle->is_directory) {
+        errno = ENOTDIR;
+        ctx->rax = (uint64_t)-1;
+        return;
+    }
+
+    if (dir_handle->cur_dirent == NULL)
+        dir_handle->cur_dirent = dir_handle->node->child;
+    else
+        dir_handle->cur_dirent = dir_handle->cur_dirent->next;
+
+    if (dir_handle->cur_dirent == NULL) {
+        // End of dir
+        errno = 0;
+        ctx->rax = (uint64_t)-1;
+        return;
+    }
+
+    dir_handle->loc++;
+
+    struct vfs_node *current = dir_handle->cur_dirent;
+
+    strcpy(buf->d_name, current->name);
+
+    while (current->redir != NULL)
+        current = current->redir;
+
+    buf->d_ino = current->res->st.st_ino;
+    buf->d_off = dir_handle->loc;
+    buf->d_reclen = sizeof(struct dirent);
+
+    switch (current->res->st.st_mode & S_IFMT) {
+        case S_IFCHR:  buf->d_type = DT_CHR;     break;
+        case S_IFBLK:  buf->d_type = DT_BLK;     break;
+        case S_IFDIR:  buf->d_type = DT_DIR;     break;
+        case S_IFLNK:  buf->d_type = DT_LNK;     break;
+        case S_IFIFO:  buf->d_type = DT_FIFO;    break;
+        case S_IFREG:  buf->d_type = DT_REG;     break;
+        case S_IFSOCK: buf->d_type = DT_SOCK;    break;
+        default:       buf->d_type = DT_UNKNOWN; break;
+    }
+
+    ctx->rax = (uint64_t)0;
 }
 
 void syscall_fstat(struct cpu_gpr_context *ctx) {

@@ -28,6 +28,7 @@ struct handle {
     int is_directory;
     struct resource *res;
     struct vfs_node *node;
+    struct vfs_node *cur_dirent;
     int refcount;
     off_t loc;
     int flags;

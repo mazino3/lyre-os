@@ -4,6 +4,7 @@
 #include <lib/lock.h>
 #include <lib/event.h>
 #include <sys/apic.h>
+#include <mm/vmm.h>
 
 static lock_t idt_lock;
 static int free_int_vect_base = 0x80;
@@ -67,6 +68,8 @@ void idt_init(void) {
         int_event[i] = event_create(16);
         idt_register_interrupt_handler(i, int_thunks[i], 0, 0x8e);
     }
+
+    idt_register_interrupt_handler(0x0e, vmm_page_fault_handler, 2, 0x8e);
 
     idt_reload();
 

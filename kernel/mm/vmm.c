@@ -10,6 +10,11 @@
 #include <sys/cpu.h>
 #include <sched/sched.h>
 
+static enum {
+    VMM_4LEVEL_PG,
+    VMM_5LEVEL_PG
+} vmm_paging_type;
+
 struct mmap_range {
     uintptr_t base;
     size_t    length;
@@ -21,15 +26,18 @@ struct mmap_range {
 
 struct pagemap {
     lock_t lock;
-    enum paging_type paging_type;
     uintptr_t *top_level;
     DYNARRAY_STRUCT(struct mmap_range *) mmap_ranges;
 };
 
 struct pagemap *kernel_pagemap = NULL;
 
+struct event *page_fault_event;
+
 void vmm_init(struct stivale2_mmap_entry *memmap, size_t memmap_entries) {
-    kernel_pagemap = vmm_new_pagemap(PAGING_4LV);
+    vmm_paging_type = VMM_4LEVEL_PG;
+
+    kernel_pagemap = vmm_new_pagemap();
 
     for (uintptr_t p = 0; p < 0x100000000; p += PAGE_SIZE) {
         vmm_map_page(kernel_pagemap, MEM_PHYS_OFFSET + p, p, 0x03);
@@ -45,6 +53,8 @@ void vmm_init(struct stivale2_mmap_entry *memmap, size_t memmap_entries) {
     }
 
     vmm_switch_pagemap(kernel_pagemap);
+
+    page_fault_event = event_create(1);
 }
 
 void vmm_switch_pagemap(struct pagemap *pagemap) {
@@ -73,7 +83,7 @@ static inline uintptr_t entries_to_virt_addr(size_t pml5_entry,
 }
 
 struct pagemap *vmm_fork_pagemap(struct pagemap *old) {
-    struct pagemap *new = vmm_new_pagemap(PAGING_4LV);
+    struct pagemap *new = vmm_new_pagemap();
 
     // This is temporary
     SPINLOCK_ACQUIRE(old->lock);
@@ -144,9 +154,8 @@ bool vmm_erase_pagemap(struct pagemap *pagemap) {
     return true;
 }
 
-struct pagemap *vmm_new_pagemap(enum paging_type paging_type) {
+struct pagemap *vmm_new_pagemap(void) {
     struct pagemap *pagemap = alloc(sizeof(struct pagemap));
-    pagemap->paging_type = paging_type;
     pagemap->top_level   = pmm_allocz(1);
     if (kernel_pagemap != NULL) {
         uintptr_t *top_level =
@@ -192,11 +201,11 @@ bool vmm_map_page(struct pagemap *pagemap, uintptr_t virt_addr, uintptr_t phys_a
     uintptr_t *pml5, *pml4, *pml3, *pml2, *pml1;
 
     // Paging levels
-    switch (pagemap->paging_type) {
-        case PAGING_5LV:
+    switch (vmm_paging_type) {
+        case VMM_5LEVEL_PG:
             pml5 = (void*)pagemap->top_level + MEM_PHYS_OFFSET;
             goto level5;
-        case PAGING_4LV:
+        case VMM_4LEVEL_PG:
             pml4 = (void*)pagemap->top_level + MEM_PHYS_OFFSET;
             goto level4;
         default:
@@ -226,17 +235,19 @@ level4:
 }
 
 struct addr2range_hit {
+    bool failed;
     struct mmap_range *range;
     size_t memory_page;
     size_t file_page;
 };
-/*
+
 static struct addr2range_hit addr2range(struct pagemap *pm, uintptr_t addr) {
     for (size_t i = 0; i < pm->mmap_ranges.length; i++) {
         struct mmap_range *r = pm->mmap_ranges.storage[i];
         if (addr >= r->base && addr < r->base + r->length) {
-            struct addr2range_hit hit;
+            struct addr2range_hit hit = {0};
 
+            hit.failed      = false;
             hit.range       = r;
             hit.memory_page = addr / PAGE_SIZE;
             hit.file_page   = r->offset / PAGE_SIZE +
@@ -245,13 +256,54 @@ static struct addr2range_hit addr2range(struct pagemap *pm, uintptr_t addr) {
             return hit;
         }
     }
-    return NULL;
+    return (struct addr2range_hit){ .failed = true };
 }
-*/
+
+void _vmm_page_fault_handler(struct cpu_gpr_context *ctx, uintptr_t addr,
+                             uint64_t err_code) {
+    if (ctx->cs & 0x03) {
+        swapgs();
+    }
+
+    struct pagemap *pagemap = this_cpu->current_thread->process->pagemap;
+
+    SPINLOCK_ACQUIRE(pagemap->lock);
+
+    struct addr2range_hit hit = addr2range(pagemap, addr);
+
+    LOCK_RELEASE(pagemap->lock);
+
+    if (hit.failed) {
+        print("PANIC unhandled page fault\n");
+        for (;;);
+    }
+
+    asm ("sti");
+
+    print("handled page fault:\n");
+    print("memory_page: %X\n", hit.memory_page);
+    print("file_page:   %X\n", hit.file_page);
+
+    bool ret = hit.range->res->mmap(hit.range->res, pagemap, hit.memory_page,
+                                    hit.file_page, hit.range->prot,
+                                    hit.range->flags);
+
+    if (ret == true) {
+        SPINLOCK_ACQUIRE(pagemap->lock);
+        DYNARRAY_REMOVE_BY_VALUE(pagemap->mmap_ranges, hit.range);
+        LOCK_RELEASE(pagemap->lock);
+    }
+
+    asm ("cli");
+
+    if (ctx->cs & 0x03) {
+        swapgs();
+    }
+}
 
 void *mmap(struct pagemap *pm, void *addr, size_t length, int prot, int flags,
            struct resource *res, off_t offset) {
-    /*print("mmap(pm: %X, addr: %X, len: %X,\n"
+    print("mmap(pm: %X, addr: %X, len: %X,\n"
           "     prot:  %s%s%s%s,\n"
           "     flags: %s%s%s%s);\n",
           pm, addr, length,
@@ -262,24 +314,28 @@ void *mmap(struct pagemap *pm, void *addr, size_t length, int prot, int flags,
           flags & MAP_SHARED    ? "MAP_SHARED ":"",
           flags & MAP_PRIVATE   ? "MAP_PRIVATE ":"",
           flags & MAP_FIXED     ? "MAP_FIXED ":"",
-          flags & MAP_ANONYMOUS ? "MAP_ANONYMOUS ":"");*/
+          flags & MAP_ANONYMOUS ? "MAP_ANONYMOUS ":"");
 
     if (length % PAGE_SIZE) {
         print("mmap: length is not a multiple of PAGE_SIZE\n");
-        return NULL;
+        return MAP_FAILED;
     }
 
     struct process *process = this_cpu->current_thread->process;
 
-    if (flags & MAP_ANONYMOUS) {
-        uintptr_t base;
-        if (flags & MAP_FIXED) {
-            base = (uintptr_t)addr;
-        } else {
-            base = process->mmap_anon_non_fixed_base;
-            process->mmap_anon_non_fixed_base += length + PAGE_SIZE;
+    uintptr_t base;
+    if (flags & MAP_FIXED) {
+        if (!(flags & MAP_ANONYMOUS)) {
+            print("non anon mmap fixed not yet supported\n");
+            for (;;);
         }
+        base = (uintptr_t)addr;
+    } else {
+        base = process->mmap_anon_non_fixed_base;
+        process->mmap_anon_non_fixed_base += length + PAGE_SIZE;
+    }
 
+    if (flags & MAP_ANONYMOUS) {
         for (uintptr_t i = 0; i < length; i += PAGE_SIZE) {
             void *page = pmm_allocz(1);
             vmm_map_page(process->pagemap, base + i, (uintptr_t)page,
@@ -290,21 +346,20 @@ void *mmap(struct pagemap *pm, void *addr, size_t length, int prot, int flags,
         return (void *)base;
     }
 
+    struct mmap_range *range = alloc(sizeof(struct mmap_range));
 
-/*
-    if ((uintptr_t)addr & PAGE_SIZE - 1) {
-        if (flags & MAP_FIXED) {
-            // errno = EINVAL;
-            return MAP_FAILED;
-        }
+    range->base   = base;
+    range->length = length;
+    range->res    = res;
+    range->offset = offset;
+    range->prot   = prot;
+    range->flags  = flags;
 
-        addr += PAGE_SIZE;
-        addr &= ~(PAGE_SIZE - 1);
-    }
+    SPINLOCK_ACQUIRE(pm->lock);
+    DYNARRAY_INSERT(pm->mmap_ranges, range);
+    LOCK_RELEASE(pm->lock);
 
-    struct addr2range_hit hit = addr2range(pm, );
-*/
-    return NULL;
+    return (void *)base;
 }
 
 void syscall_mmap(struct cpu_gpr_context *ctx) {
@@ -315,6 +370,16 @@ void syscall_mmap(struct cpu_gpr_context *ctx) {
     int    fd     = (int)    ctx->r8;
     off_t  offset = (off_t)  ctx->r9;
 
+    struct resource *res = NULL;
+
+    if (!(flags & MAP_ANONYMOUS)) {
+        res = resource_from_fd(fd);
+        if (res == NULL) {
+            ctx->rax = (uint64_t)-1;
+            return;
+        }
+    }
+
     ctx->rax = (uint64_t)mmap(this_cpu->current_thread->process->pagemap,
-                              addr, length, prot, flags, NULL, offset);
+                              addr, length, prot, flags, res, offset);
 }

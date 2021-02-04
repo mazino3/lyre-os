@@ -31,18 +31,13 @@
 
 #define MAP_FAILED ((void *)-1)
 
-enum paging_type {
-    PAGING_4LV,
-    PAGING_5LV
-};
-
 struct pagemap;
 
 extern struct pagemap *kernel_pagemap;
 
 void vmm_init(struct stivale2_mmap_entry *memmap, size_t memmap_entries);
 void vmm_switch_pagemap(struct pagemap *pagemap);
-struct pagemap *vmm_new_pagemap(enum paging_type paging_type);
+struct pagemap *vmm_new_pagemap(void);
 struct pagemap *vmm_fork_pagemap(struct pagemap *old);
 bool vmm_erase_pagemap(struct pagemap *pagemap);
 bool vmm_map_page(struct pagemap *pagemap, uintptr_t virt_addr, uintptr_t phys_addr,
@@ -50,5 +45,7 @@ bool vmm_map_page(struct pagemap *pagemap, uintptr_t virt_addr, uintptr_t phys_a
 
 void *mmap(struct pagemap *pm, void *addr, size_t length, int prot, int flags,
            struct resource *res, off_t offset);
+
+void vmm_page_fault_handler(void);
 
 #endif

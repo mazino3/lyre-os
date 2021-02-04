@@ -6,6 +6,8 @@
 #include <lib/lock.h>
 #include <socket/socket.h>
 
+struct pagemap;
+
 struct resource {
     size_t actual_size;
 
@@ -20,6 +22,9 @@ struct resource {
     int     (*ioctl)(struct resource *this, int request, void *argp);
 
     int     (*bind)(struct resource *this, const struct sockaddr *addr, socklen_t addrlen);
+
+    bool (*mmap)(struct resource *this, struct pagemap *pagemap,
+                 size_t memory_page, size_t file_page, int prot, int flags);
 };
 
 struct vfs_node;

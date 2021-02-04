@@ -104,13 +104,26 @@
 
 #define DYNARRAY_GET_INDEX_BY_VALUE(THIS, VALUE) ({ \
     ssize_t i;                                      \
-    for (i = 0; i < (THIS).length; i++) {           \
+    for (i = 0; i < (ssize_t)(THIS).length; i++) {  \
         if ((THIS).storage[i] == (VALUE))           \
             break;                                  \
     }                                               \
-    if (i == (THIS).length)                         \
+    if (i == (ssize_t)((THIS).length))              \
         i = -1;                                     \
     i;                                              \
+})
+
+#define DYNARRAY_REMOVE_BY_VALUE(THIS, VALUE) ({   \
+    ssize_t i;                                     \
+    for (i = 0; i < (ssize_t)(THIS).length; i++) { \
+        if ((THIS).storage[i] == (VALUE)) {        \
+            (THIS).storage[i] = NULL;              \
+            break;                                 \
+        }                                          \
+    }                                              \
+    if (i == (ssize_t)((THIS).length))             \
+        i = -1;                                    \
+    i;                                             \
 })
 
 #define DYNARRAY_REMOVE_AND_PACK(THIS, INDEX) ({           \

@@ -24,7 +24,7 @@ int main(void) {
         close(card);
         return -1;
     }
-    
+
     printf("\ndumb buffers supported\n");
     drmModeRes *res;
     drmModeConnector *conn;

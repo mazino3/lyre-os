@@ -50,7 +50,7 @@ struct process *sched_start_program(bool execve,
     if (file == NULL)
         return NULL;
 
-    struct pagemap *new_pagemap = vmm_new_pagemap(PAGING_4LV);
+    struct pagemap *new_pagemap = vmm_new_pagemap();
 
     struct auxval_t auxval;
     char *ld_path;
@@ -341,6 +341,11 @@ struct thread *sched_new_thread(struct thread *new_thread,
 
     size_t *stack = pmm_allocz(THREAD_STACK_SIZE / PAGE_SIZE);
 
+    if (new_thread->page_fault_stack == 0) {
+        new_thread->page_fault_stack = (uintptr_t)pmm_allocz(THREAD_STACK_SIZE / PAGE_SIZE);
+        new_thread->page_fault_stack += THREAD_STACK_SIZE + MEM_PHYS_OFFSET;
+    }
+
     uintptr_t stack_bottom_vma;
     if (proc != kernel_process) {
         // User thread
@@ -564,6 +569,8 @@ void reschedule(struct cpu_gpr_context *ctx) {
 
     cpu_local->user_stack   = current_thread->user_stack;
     cpu_local->kernel_stack = current_thread->kernel_stack;
+
+    cpu_local->tss.ist2 = current_thread->page_fault_stack;
 
     LOCK_RELEASE(sched_lock);
 

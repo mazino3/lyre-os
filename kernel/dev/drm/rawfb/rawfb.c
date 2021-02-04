@@ -164,7 +164,7 @@ static int rawfb_ioctl(struct resource *this, int request, void *argp) {
             print("modeset crtc %x\n", fb_size);
             return 0;
         }
-        
+
         case DRM_IOCTL_MODE_CREATE_DUMB : {
             struct drm_mode_create_dumb *res = argp;
 
@@ -187,7 +187,7 @@ static int rawfb_ioctl(struct resource *this, int request, void *argp) {
             res->handle = DYNARRAY_INSERT(dumb_buffers, nb);
             return 0;
         }
-        
+
         case DRM_IOCTL_MODE_ADDFB : {
             struct drm_mode_fb_cmd *res = argp;
             struct plainfb_fb *fb = alloc(sizeof(struct plainfb_fb));
@@ -218,7 +218,7 @@ static int rawfb_ioctl(struct resource *this, int request, void *argp) {
             res->offset = res->handle;
             return 0;
         }
-        
+
         case DRM_IOCTL_MODE_DESTROY_DUMB : {
             struct drm_mode_destroy_dumb *res = argp;
             print("dumb buffer does not exist\n");
@@ -251,9 +251,20 @@ static int rawfb_ioctl(struct resource *this, int request, void *argp) {
     return 0;
 }
 
+static bool rawfb_mmap(struct resource *this, struct pagemap *pagemap,
+                       size_t memory_page, size_t file_page, int prot, int flags) {
+    uintptr_t fb_addr = vesa_framebuffer_addr - MEM_PHYS_OFFSET;
+
+    vmm_map_page(pagemap, memory_page * PAGE_SIZE, fb_addr + file_page * PAGE_SIZE,
+                 0x07);
+
+    return true;
+}
+
 void init_rawfbdev(struct stivale2_struct_tag_framebuffer *framebuffer_tag) {
     struct drm_device *dri = resource_create(sizeof(struct drm_device));
     dri->ioctl = rawfb_ioctl;
+    dri->mmap  = rawfb_mmap;
     dri->num_crtcs = 1;
     dri->num_connectors = 1;
     dri->num_encoders = 1;

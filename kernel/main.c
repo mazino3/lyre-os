@@ -35,7 +35,7 @@ static void main_thread(struct stivale2_struct *stivale2_struct) {
 
     struct stivale2_struct_tag_framebuffer *framebuffer_tag =
         stivale2_get_tag(stivale2_struct, STIVALE2_STRUCT_TAG_FRAMEBUFFER_ID);
-    
+
     dev_init(framebuffer_tag);
     vfs_dump_nodes(NULL, "");
 

@@ -26,6 +26,7 @@ struct thread {
     uintptr_t user_fs;
     uintptr_t user_stack;
     uintptr_t kernel_stack;
+    uintptr_t page_fault_stack;
     lock_t event_block_dequeue;
     lock_t event_occurred;
 };

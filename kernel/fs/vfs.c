@@ -749,8 +749,6 @@ void syscall_readdir(struct cpu_gpr_context *ctx) {
         return;
     }
 
-    dir_handle->loc++;
-
     struct vfs_node *current = dir_handle->cur_dirent;
 
     strcpy(buf->d_name, current->name);
@@ -759,7 +757,7 @@ void syscall_readdir(struct cpu_gpr_context *ctx) {
         current = current->redir;
 
     buf->d_ino = current->res->st.st_ino;
-    buf->d_off = dir_handle->loc;
+    buf->d_off = dir_handle->loc++;
     buf->d_reclen = sizeof(struct dirent);
 
     switch (current->res->st.st_mode & S_IFMT) {

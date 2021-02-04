@@ -97,7 +97,7 @@ static void plot_px(int x, int y, uint32_t hex) {
     fb[fb_i] = hex;
 }
 
-static void plot_char(char c, int x, int y, uint32_t hex_fg, uint32_t hex_bg) {
+static void plot_char(unsigned char c, int x, int y, uint32_t hex_fg, uint32_t hex_bg) {
     int orig_x = x;
     uint8_t *glyph = &font[c * font_height];
 
@@ -109,7 +109,7 @@ static void plot_char(char c, int x, int y, uint32_t hex_fg, uint32_t hex_bg) {
     }
 }
 
-static void plot_char_grid(struct tty *tty, char c, int x, int y, uint32_t hex_fg, uint32_t hex_bg) {
+static void plot_char_grid(struct tty *tty, unsigned char c, int x, int y, uint32_t hex_fg, uint32_t hex_bg) {
     if (tty->grid[x + y * cols] != c
      || tty->gridfg[x + y * cols] != hex_fg
      || tty->gridbg[x + y * cols] != hex_bg) {
@@ -239,7 +239,7 @@ def:
     }
 }
 
-static void control_sequence_parse(struct tty *tty, char c) {
+static void control_sequence_parse(struct tty *tty, unsigned char c) {
     if (c >= '0' && c <= '9') {
         tty->rrr = 1;
         tty->esc_values[tty->esc_values_i] *= 10;
@@ -389,7 +389,7 @@ static void control_sequence_parse(struct tty *tty, char c) {
     tty->escape = 0;
 }
 
-static void escape_parse(struct tty *tty, char c) {
+static void escape_parse(struct tty *tty, unsigned char c) {
     if (tty->control_sequence) {
         control_sequence_parse(tty, c);
         return;
@@ -408,7 +408,7 @@ static void escape_parse(struct tty *tty, char c) {
     }
 }
 
-static void put_char(struct tty *tty, char c) {
+static void put_char(struct tty *tty, unsigned char c) {
     if (tty->escape) {
         escape_parse(tty, c);
         return;
@@ -489,7 +489,7 @@ static ssize_t tty_write(struct resource *this, const void *void_buf, off_t loc,
         return -1;
     }
 
-    const char *buf = void_buf;
+    const unsigned char *buf = void_buf;
     SPINLOCK_ACQUIRE(tty->write_lock);
     for (size_t i = 0; i < count; i++)
         put_char(tty, buf[i]);

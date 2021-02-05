@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <libudev.h>
+#include <string.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 #include <sys/mman.h>
@@ -34,6 +35,7 @@ int main(void) {
     printf("resolution: %dx%d\n",conn->modes[0].hdisplay, conn->modes[0].vdisplay);
     fflush(stdout);
 
+for(int i = 0; i < 2; i++) {
     struct drm_mode_create_dumb creq;
     struct drm_mode_map_dumb mreq;
     creq.width = conn->modes[0].hdisplay;
@@ -44,14 +46,27 @@ int main(void) {
     drmModeAddFB(card, conn->modes[0].hdisplay, conn->modes[0].vdisplay, 24, 32, 32, creq.handle, &fb_id);
     mreq.handle = creq.handle;
     drmIoctl(card, DRM_IOCTL_MODE_MAP_DUMB, &mreq);
-    size_t addr = (size_t)mmap(0, creq.size, PROT_READ | PROT_WRITE, MAP_SHARED,
+    uint32_t* addr = (uint32_t*)mmap(0, creq.size, PROT_READ | PROT_WRITE, MAP_SHARED,
 		        card, mreq.offset);
 
+    printf("addr is %p size is %p\n", addr, creq.size);
+
+    if (i == 1) {
+        memset(addr, 0xff, creq.size);
+    } else {
+        memset(addr, 0xaa, creq.size);
+    }
+}
+
     uint32_t conns[1] = {1};
-    drmModeSetCrtc(card, 1, 0, 0, 0, conns, 1, &conn->modes[0]);
+    while (1) {
+        drmModeSetCrtc(card, 1, 0, 0, 0, conns, 1, &conn->modes[0]);
+        drmModeSetCrtc(card, 1, 1, 0, 0, conns, 1, &conn->modes[0]);
+    }
 
     printf("\ndumb buffer allocated\n");
     fflush(stdout);
+    for (;;);
 #else
     printf("lyre: init started!\n");
     fflush(stdout);

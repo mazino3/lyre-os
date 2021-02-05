@@ -47,7 +47,6 @@ static int rawfb_ioctl(struct resource *this, int request, void *argp) {
     struct drm_device *this_drm = (struct drm_device*)this;
     switch (request) {
         case DRM_IOCTL_GET_CAP : {
-            print("drm get capability\n");
             struct drm_get_cap *cap = argp;
             if (cap->capability == DRM_CAP_DUMB_BUFFER) {
                 cap->value = 1;
@@ -56,7 +55,6 @@ static int rawfb_ioctl(struct resource *this, int request, void *argp) {
             break;
         }
         case DRM_IOCTL_MODE_GETRESOURCES : {
-            print("drm get resources\n");
             struct drm_mode_card_res *res = argp;
             if (!res->fb_id_ptr) {
                 res->count_fbs = this_drm->num_fbs;
@@ -90,7 +88,6 @@ static int rawfb_ioctl(struct resource *this, int request, void *argp) {
             res->min_height = vesa_height;
             res->max_width = vesa_width;
             res->max_height = vesa_height;
-            print("drm get resources done\n");
             return 0;
         }
         case DRM_IOCTL_MODE_GETCONNECTOR : {
@@ -151,17 +148,14 @@ static int rawfb_ioctl(struct resource *this, int request, void *argp) {
 
         case DRM_IOCTL_MODE_SETCRTC : {
             //we ignore all mode-related stuff because we cannot change the mode on the bios framebuffer
-            print("modeset crtc start %X %X\n", vesa_framebuffer_addr);
             struct drm_mode_crtc *res = argp;
             if (res->crtc_id != 1) {
                 //TODO check the proper error to return here
                 return -1;
             }
-            void* fb_data = dumb_buffers.storage[fbs.storage[res->fb_id]->dumb_buffer_off]->buffer;
+            void* fb_data = (uintptr_t)dumb_buffers.storage[fbs.storage[res->fb_id]->dumb_buffer_off]->buffer;
             size_t fb_size = dumb_buffers.storage[fbs.storage[res->fb_id]->dumb_buffer_off]->size;
-//            memset(fb_data, 0xFF, fb_size);
             memcpy((void*)(vesa_framebuffer_addr), fb_data, fb_size);
-            print("modeset crtc %x\n", fb_size);
             return 0;
         }
 
@@ -170,7 +164,6 @@ static int rawfb_ioctl(struct resource *this, int request, void *argp) {
 
             size_t pitch = vesa_pitch;
             size_t size = res->height * pitch;
-            print("create dumb size: %X\n", size);
 
             struct plainfb_dumb_buffer *nb = alloc(sizeof(struct plainfb_dumb_buffer));
             nb->height = res->height;
@@ -251,12 +244,22 @@ static int rawfb_ioctl(struct resource *this, int request, void *argp) {
     return 0;
 }
 
-static bool rawfb_mmap(struct resource *this, struct pagemap *pagemap,
-                       size_t memory_page, size_t file_page, int prot, int flags) {
+static bool rawfb_mmap_hit(struct resource *this, struct mmap_range_local *range,
+                      size_t memory_page, size_t file_page) {
     uintptr_t fb_addr = vesa_framebuffer_addr - MEM_PHYS_OFFSET;
 
-    vmm_map_page(pagemap, memory_page * PAGE_SIZE, fb_addr + file_page * PAGE_SIZE,
-                 0x07);
+
+    if (range->offset > (dumb_buffers.length - 1)) {
+        return false;
+    }
+
+    size_t addr = dumb_buffers.storage[range->offset]->buffer;
+    size_t size = dumb_buffers.storage[range->offset]->size;
+
+    for (size_t i = 0; i < (size / PAGE_SIZE); i++) {
+        mmap_map_page_in_range(range->global, memory_page * PAGE_SIZE + PAGE_SIZE * i, (addr - MEM_PHYS_OFFSET) + PAGE_SIZE * i, 0x07);
+    }
+
 
     return true;
 }
@@ -264,7 +267,7 @@ static bool rawfb_mmap(struct resource *this, struct pagemap *pagemap,
 void init_rawfbdev(struct stivale2_struct_tag_framebuffer *framebuffer_tag) {
     struct drm_device *dri = resource_create(sizeof(struct drm_device));
     dri->ioctl = rawfb_ioctl;
-    dri->mmap  = rawfb_mmap;
+    dri->mmap_hit  = rawfb_mmap_hit;
     dri->num_crtcs = 1;
     dri->num_connectors = 1;
     dri->num_encoders = 1;

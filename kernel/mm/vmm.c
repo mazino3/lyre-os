@@ -259,8 +259,7 @@ static struct addr2range_hit addr2range(struct pagemap *pm, uintptr_t addr) {
     return (struct addr2range_hit){ .failed = true };
 }
 
-void _vmm_page_fault_handler(struct cpu_gpr_context *ctx, uintptr_t addr,
-                             uint64_t err_code) {
+void _vmm_page_fault_handler(struct cpu_gpr_context *ctx, uintptr_t addr) {
     if (ctx->cs & 0x03) {
         swapgs();
     }

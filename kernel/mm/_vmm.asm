@@ -4,6 +4,8 @@ global vmm_page_fault_handler
 vmm_page_fault_handler:
     cld
 
+    add rsp, 8
+
     push r15
     push r14
     push r13
@@ -22,7 +24,6 @@ vmm_page_fault_handler:
 
     mov rdi, rsp
     mov rsi, cr2
-    mov rdx, [rsp + 16*8]
 
     extern _vmm_page_fault_handler
     call _vmm_page_fault_handler
@@ -42,7 +43,5 @@ vmm_page_fault_handler:
     pop r13
     pop r14
     pop r15
-
-    add rsp, 8
 
     iretq

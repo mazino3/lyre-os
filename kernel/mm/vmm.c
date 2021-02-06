@@ -6,6 +6,7 @@
 #include <lib/lock.h>
 #include <lib/dynarray.h>
 #include <lib/print.h>
+#include <lib/errno.h>
 #include <stivale/stivale2.h>
 #include <sys/cpu.h>
 #include <sched/sched.h>
@@ -15,19 +16,10 @@ static enum {
     VMM_5LEVEL_PG
 } vmm_paging_type;
 
-struct mmap_range {
-    uintptr_t base;
-    size_t    length;
-    struct resource *res;
-    off_t     offset;
-    int       prot;
-    int       flags;
-};
-
 struct pagemap {
     lock_t lock;
     uintptr_t *top_level;
-    DYNARRAY_STRUCT(struct mmap_range *) mmap_ranges;
+    DYNARRAY_STRUCT(struct mmap_range_local *) mmap_ranges;
 };
 
 struct pagemap *kernel_pagemap = NULL;
@@ -168,13 +160,17 @@ struct pagemap *vmm_new_pagemap(void) {
     return pagemap;
 }
 
-static uintptr_t *get_next_level(uintptr_t *current_level, size_t entry) {
+static uintptr_t *get_next_level(uintptr_t *current_level, size_t entry,
+                                 bool allocate) {
     uintptr_t ret;
 
     if (current_level[entry] & 0x1) {
         // Present flag set
         ret = current_level[entry] & ~((uintptr_t)0xfff);
     } else {
+        if (!allocate)
+            return NULL;
+
         // Allocate a table for the next level
         ret = (uintptr_t)pmm_allocz(1);
         if (ret == 0) {
@@ -187,10 +183,8 @@ static uintptr_t *get_next_level(uintptr_t *current_level, size_t entry) {
     return (void *)ret + MEM_PHYS_OFFSET;
 }
 
-bool vmm_map_page(struct pagemap *pagemap, uintptr_t virt_addr, uintptr_t phys_addr,
-                  uintptr_t flags) {
-    SPINLOCK_ACQUIRE(pagemap->lock);
-
+static uintptr_t *virt2pte(struct pagemap *pagemap,
+                           uintptr_t virt_addr, bool allocate) {
     // Calculate the indices in the various tables using the virtual address
     uintptr_t pml5_entry = (virt_addr & ((uintptr_t)0x1ff << 48)) >> 48;
     uintptr_t pml4_entry = (virt_addr & ((uintptr_t)0x1ff << 39)) >> 39;
@@ -213,21 +207,67 @@ bool vmm_map_page(struct pagemap *pagemap, uintptr_t virt_addr, uintptr_t phys_a
     }
 
 level5:
-    pml4 = get_next_level(pml5, pml5_entry);
+    pml4 = get_next_level(pml5, pml5_entry, allocate);
     if (pml4 == NULL)
-        return false;
+        return NULL;
 level4:
-    pml3 = get_next_level(pml4, pml4_entry);
+    pml3 = get_next_level(pml4, pml4_entry, allocate);
     if (pml3 == NULL)
-        return false;
-    pml2 = get_next_level(pml3, pml3_entry);
+        return NULL;
+    pml2 = get_next_level(pml3, pml3_entry, allocate);
     if (pml2 == NULL)
-        return false;
-    pml1 = get_next_level(pml2, pml2_entry);
+        return NULL;
+    pml1 = get_next_level(pml2, pml2_entry, allocate);
     if (pml1 == NULL)
-        return false;
+        return NULL;
 
-    pml1[pml1_entry] = phys_addr | flags;
+    return &pml1[pml1_entry];
+}
+
+#define INVALID_PHYS ((uintptr_t)0xffffffffffffffff)
+
+static uintptr_t virt2phys(struct pagemap *pagemap, uintptr_t virt_addr) {
+    uintptr_t *pte_p = virt2pte(pagemap, virt_addr, false);
+    if (pte_p == NULL)
+        return INVALID_PHYS;
+
+    return *pte_p & ~((uintptr_t)0xfff);
+}
+
+static void invalidate_tlb(struct pagemap *pagemap, uintptr_t virt_addr) {
+    uintptr_t cr3 = read_cr("3");
+    if ((cr3 & ~((uintptr_t)0xfff))
+     == ((uintptr_t)pagemap->top_level & ~((uintptr_t)0xfff))) {
+        invlpg((void*)virt_addr);
+    }
+}
+
+static bool unmap_page(struct pagemap *pagemap, uintptr_t virt_addr) {
+    uintptr_t *pte_p = virt2pte(pagemap, virt_addr, false);
+    if (pte_p == NULL) {
+        return false;
+    }
+
+    *pte_p = 0;
+
+    invalidate_tlb(pagemap, virt_addr);
+
+    return true;
+}
+
+bool vmm_map_page(struct pagemap *pagemap, uintptr_t virt_addr, uintptr_t phys_addr,
+                  uintptr_t flags) {
+    SPINLOCK_ACQUIRE(pagemap->lock);
+
+    uintptr_t *pte_p = virt2pte(pagemap, virt_addr, true);
+    if (pte_p == NULL) {
+        LOCK_RELEASE(pagemap->lock);
+        return false;
+    }
+
+    *pte_p = phys_addr | flags;
+
+    invalidate_tlb(pagemap, virt_addr);
 
     LOCK_RELEASE(pagemap->lock);
 
@@ -236,14 +276,14 @@ level4:
 
 struct addr2range_hit {
     bool failed;
-    struct mmap_range *range;
+    struct mmap_range_local *range;
     size_t memory_page;
     size_t file_page;
 };
 
 static struct addr2range_hit addr2range(struct pagemap *pm, uintptr_t addr) {
     for (size_t i = 0; i < pm->mmap_ranges.length; i++) {
-        struct mmap_range *r = pm->mmap_ranges.storage[i];
+        struct mmap_range_local *r = pm->mmap_ranges.storage[i];
         if (addr >= r->base && addr < r->base + r->length) {
             struct addr2range_hit hit = {0};
 
@@ -273,7 +313,7 @@ void _vmm_page_fault_handler(struct cpu_gpr_context *ctx, uintptr_t addr) {
     LOCK_RELEASE(pagemap->lock);
 
     if (hit.failed) {
-        print("PANIC unhandled page fault\n");
+        print("PANIC unhandled page fault at %X\n", ctx->rip);
         for (;;);
     }
 
@@ -287,9 +327,9 @@ void _vmm_page_fault_handler(struct cpu_gpr_context *ctx, uintptr_t addr) {
         goto out;
     }
 
-    bool ret = hit.range->res->mmap(hit.range->res, pagemap, hit.memory_page,
-                                    hit.file_page, hit.range->prot,
-                                    hit.range->flags);
+    bool ret = hit.range->global->res->mmap(hit.range->global->res, hit.range,
+                                            hit.memory_page,
+                                            hit.file_page);
 
     if (ret == true) {
         SPINLOCK_ACQUIRE(pagemap->lock);
@@ -309,21 +349,88 @@ bool mmap_range(struct pagemap *pm, uintptr_t virt_addr, uintptr_t phys_addr,
                 size_t length, int prot, int flags) {
     flags |= MAP_ANONYMOUS;
 
-    struct mmap_range *range = alloc(sizeof(struct mmap_range));
+    void *pool = alloc(sizeof(struct mmap_range_local)
+                     + sizeof(struct mmap_range_global));
+    struct mmap_range_local  *range_local  = pool;
+    struct mmap_range_global *range_global = pool + sizeof(struct mmap_range_local);
 
-    range->base   = virt_addr;
-    range->length = length;
-    range->prot   = prot;
-    range->flags  = flags;
+    range_local->global = range_global;
+    range_local->base   = virt_addr;
+    range_local->length = length;
+    range_local->prot   = prot;
+    range_local->flags  = flags;
+
+    DYNARRAY_INSERT(range_global->pagemaps, pm);
+    range_global->base   = virt_addr;
+    range_global->length = length;
 
     SPINLOCK_ACQUIRE(pm->lock);
-    DYNARRAY_INSERT(pm->mmap_ranges, range);
+    DYNARRAY_INSERT(pm->mmap_ranges, range_local);
     LOCK_RELEASE(pm->lock);
 
     for (size_t i = 0; i < length; i += PAGE_SIZE) {
         vmm_map_page(pm, virt_addr + i, phys_addr + i,
                      PTE_PRESENT | PTE_USER |
                      (prot & PROT_WRITE ? PTE_WRITABLE : 0));
+    }
+
+    return true;
+}
+
+bool munmap(struct pagemap *pm, void *addr, size_t length) {
+    if (length % PAGE_SIZE || length == 0) {
+        print("munmap: length is not a multiple of PAGE_SIZE or is 0\n");
+        errno = EINVAL;
+        return false;
+    }
+
+    for (uintptr_t i = (uintptr_t)addr;
+      i < (uintptr_t)addr + length;
+      i += PAGE_SIZE) {
+        struct addr2range_hit hit = addr2range(pm, i);
+        if (hit.failed)
+            continue;
+
+        struct mmap_range_local *r = hit.range;
+        struct mmap_range_global *g = r->global;
+
+        uintptr_t begin_snip = i;
+        for (;;) {
+            i += PAGE_SIZE;
+            if (i >= r->base + r->length || i >= (uintptr_t)addr + length)
+                break;
+        }
+        uintptr_t end_snip = i;
+        uintptr_t snip_size = end_snip - begin_snip;
+
+        if (begin_snip > r->base && end_snip < r->base + r->length) {
+            // We will have to split the range in 2
+            print("munmap: range splits not yet supported\n");
+            errno = EINVAL;
+            return false;
+        }
+
+        for (uintptr_t i = begin_snip; i < end_snip; i += PAGE_SIZE)
+            unmap_page(pm, i);
+
+        if (snip_size == r->length) {
+            DYNARRAY_REMOVE_BY_VALUE(pm->mmap_ranges, r);
+        }
+
+        if (snip_size == r->length && g->pagemaps.length == 1) {
+            if (r->flags & MAP_ANONYMOUS) {
+                for (uintptr_t i = g->base;
+                  i < g->base + g->length; i += PAGE_SIZE)
+                    pmm_free((void *)virt2phys(pm, i), 1);
+            } else {
+                g->res->munmap(g->res, r);
+            }
+        } else {
+            if (begin_snip == r->base)
+                r->base = end_snip;
+            else
+                r->length -= end_snip - begin_snip;
+        }
     }
 
     return true;
@@ -344,8 +451,9 @@ void *mmap(struct pagemap *pm, void *addr, size_t length, int prot, int flags,
           flags & MAP_FIXED     ? "MAP_FIXED ":"",
           flags & MAP_ANONYMOUS ? "MAP_ANONYMOUS ":"");
 
-    if (length % PAGE_SIZE) {
-        print("mmap: length is not a multiple of PAGE_SIZE\n");
+    if (length % PAGE_SIZE || length == 0) {
+        print("mmap: length is not a multiple of PAGE_SIZE or is 0\n");
+        errno = EINVAL;
         return MAP_FAILED;
     }
 
@@ -359,18 +467,30 @@ void *mmap(struct pagemap *pm, void *addr, size_t length, int prot, int flags,
         process->mmap_anon_non_fixed_base += length + PAGE_SIZE;
     }
 
-    struct mmap_range *range = alloc(sizeof(struct mmap_range));
+    void *pool = alloc(sizeof(struct mmap_range_local)
+                     + sizeof(struct mmap_range_global));
+    struct mmap_range_local  *range_local  = pool;
+    struct mmap_range_global *range_global = pool + sizeof(struct mmap_range_local);
 
-    range->base   = base;
-    range->length = length;
-    range->res    = res;
-    range->offset = offset;
-    range->prot   = prot;
-    range->flags  = flags;
+    range_local->global = range_global;
+    range_local->base   = base;
+    range_local->length = length;
+    range_local->offset = offset;
+    range_local->prot   = prot;
+    range_local->flags  = flags;
+
+    DYNARRAY_INSERT(range_global->pagemaps, pm);
+    range_global->base   = base;
+    range_global->length = length;
+    range_global->res    = res;
+    range_global->offset = offset;
 
     SPINLOCK_ACQUIRE(pm->lock);
-    DYNARRAY_INSERT(pm->mmap_ranges, range);
+    DYNARRAY_INSERT(pm->mmap_ranges, range_local);
     LOCK_RELEASE(pm->lock);
+
+    if (res != NULL)
+        res->refcount++;
 
     return (void *)base;
 }

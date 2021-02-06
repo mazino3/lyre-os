@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <lib/types.h>
 #include <lib/resource.h>
+#include <lib/dynarray.h>
 #include <stivale/stivale2.h>
 
 #define PAGE_SIZE ((size_t)4096)
@@ -32,6 +33,23 @@
 #define MAP_FAILED ((void *)-1)
 
 struct pagemap;
+
+struct mmap_range_global {
+    DYNARRAY_STRUCT(struct pagemap *) pagemaps;
+    struct resource *res;
+    uintptr_t base;
+    size_t    length;
+    off_t     offset;
+};
+
+struct mmap_range_local {
+    struct mmap_range_global *global;
+    uintptr_t base;
+    size_t    length;
+    off_t     offset;
+    int       prot;
+    int       flags;
+};
 
 extern struct pagemap *kernel_pagemap;
 

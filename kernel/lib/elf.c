@@ -78,15 +78,15 @@ bool elf_load(struct pagemap *pagemap, struct resource *file, uintptr_t base,
         if (!addr)
             goto out;
 
-        size_t pf = 0x05;
+        size_t pf = PROT_READ | PROT_EXEC;
         if (phdr[i].p_flags & PF_W)
-            pf |= 0x02;
+            pf |= PROT_WRITE;
 
-        for (size_t j = 0; j < page_count; j++) {
-            size_t virt = base + phdr[i].p_vaddr + (j * PAGE_SIZE);
-            size_t phys = (size_t)addr + (j * PAGE_SIZE);
-            vmm_map_page(pagemap, virt, phys, pf);
-        }
+        size_t virt = base + phdr[i].p_vaddr;
+        size_t phys = (size_t)addr;
+
+        mmap_range(pagemap, virt, phys, page_count * PAGE_SIZE, pf,
+                   MAP_ANONYMOUS);
 
         char *buf = (char *)((uintptr_t)addr + MEM_PHYS_OFFSET);
         ret = file->read(file, buf + misalign, phdr[i].p_offset, phdr[i].p_filesz);

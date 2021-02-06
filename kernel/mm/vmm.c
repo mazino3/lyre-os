@@ -279,9 +279,13 @@ void _vmm_page_fault_handler(struct cpu_gpr_context *ctx, uintptr_t addr) {
 
     asm ("sti");
 
-    print("handled page fault:\n");
-    print("memory_page: %X\n", hit.memory_page);
-    print("file_page:   %X\n", hit.file_page);
+    if (hit.range->flags & MAP_ANONYMOUS) {
+        void *page = pmm_allocz(1);
+        vmm_map_page(pagemap, hit.memory_page * PAGE_SIZE, (uintptr_t)page,
+                     PTE_PRESENT | PTE_USER |
+                     (hit.range->prot & PROT_WRITE ? PTE_WRITABLE : 0));
+        goto out;
+    }
 
     bool ret = hit.range->res->mmap(hit.range->res, pagemap, hit.memory_page,
                                     hit.file_page, hit.range->prot,
@@ -293,11 +297,36 @@ void _vmm_page_fault_handler(struct cpu_gpr_context *ctx, uintptr_t addr) {
         LOCK_RELEASE(pagemap->lock);
     }
 
+out:
     asm ("cli");
 
     if (ctx->cs & 0x03) {
         swapgs();
     }
+}
+
+bool mmap_range(struct pagemap *pm, uintptr_t virt_addr, uintptr_t phys_addr,
+                size_t length, int prot, int flags) {
+    flags |= MAP_ANONYMOUS;
+
+    struct mmap_range *range = alloc(sizeof(struct mmap_range));
+
+    range->base   = virt_addr;
+    range->length = length;
+    range->prot   = prot;
+    range->flags  = flags;
+
+    SPINLOCK_ACQUIRE(pm->lock);
+    DYNARRAY_INSERT(pm->mmap_ranges, range);
+    LOCK_RELEASE(pm->lock);
+
+    for (size_t i = 0; i < length; i += PAGE_SIZE) {
+        vmm_map_page(pm, virt_addr + i, phys_addr + i,
+                     PTE_PRESENT | PTE_USER |
+                     (prot & PROT_WRITE ? PTE_WRITABLE : 0));
+    }
+
+    return true;
 }
 
 void *mmap(struct pagemap *pm, void *addr, size_t length, int prot, int flags,
@@ -324,25 +353,10 @@ void *mmap(struct pagemap *pm, void *addr, size_t length, int prot, int flags,
 
     uintptr_t base;
     if (flags & MAP_FIXED) {
-        if (!(flags & MAP_ANONYMOUS)) {
-            print("non anon mmap fixed not yet supported\n");
-            for (;;);
-        }
         base = (uintptr_t)addr;
     } else {
         base = process->mmap_anon_non_fixed_base;
         process->mmap_anon_non_fixed_base += length + PAGE_SIZE;
-    }
-
-    if (flags & MAP_ANONYMOUS) {
-        for (uintptr_t i = 0; i < length; i += PAGE_SIZE) {
-            void *page = pmm_allocz(1);
-            vmm_map_page(process->pagemap, base + i, (uintptr_t)page,
-                         PTE_PRESENT | PTE_USER |
-                         (prot & PROT_WRITE ? PTE_WRITABLE : 0));
-        }
-
-        return (void *)base;
     }
 
     struct mmap_range *range = alloc(sizeof(struct mmap_range));

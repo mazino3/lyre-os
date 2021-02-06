@@ -356,10 +356,9 @@ struct thread *sched_new_thread(struct thread *new_thread,
         stack_bottom_vma = proc->thread_stack_top;
         proc->thread_stack_top -= PAGE_SIZE;
 
-        for (size_t i = 0; i < THREAD_STACK_SIZE; i += PAGE_SIZE) {
-            vmm_map_page(new_pagemap, stack_bottom_vma + i,
-                         (uintptr_t)stack + i, 0x07);
-        }
+        mmap_range(new_pagemap, stack_bottom_vma, (uintptr_t)stack,
+                   THREAD_STACK_SIZE, PROT_READ | PROT_WRITE,
+                   MAP_ANONYMOUS);
 
         if (new_thread->kernel_stack == 0) {
             void *kernel_stack = pmm_allocz(THREAD_STACK_SIZE / PAGE_SIZE);

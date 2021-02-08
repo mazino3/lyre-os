@@ -66,6 +66,8 @@ bool vmm_erase_pagemap(struct pagemap *pagemap);
 bool vmm_map_page(struct pagemap *pagemap, uintptr_t virt_addr, uintptr_t phys_addr,
                   uintptr_t flags);
 
+bool mmap_map_page_in_range(struct mmap_range_global *g, uintptr_t virt_addr,
+                            uintptr_t phys_addr, int prot);
 bool mmap_range(struct pagemap *pagemap, uintptr_t virt_addr, uintptr_t phys_addr,
                    size_t length, int prot, int flags);
 void *mmap(struct pagemap *pm, void *addr, size_t length, int prot, int flags,

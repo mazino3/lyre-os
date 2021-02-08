@@ -105,6 +105,8 @@ syscall_table:
     dq syscall_exit
     extern syscall_readdir
     dq syscall_readdir
+    extern syscall_munmap
+    dq syscall_munmap
   .end:
 
 section .rodata

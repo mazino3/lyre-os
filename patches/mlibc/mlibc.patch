@@ -77,10 +77,10 @@ index 0000000..ee7a794
 +
 diff --git a/ports/mlibc-workdir/sysdeps/lyre/generic/generic.cpp b/ports/mlibc-workdir/sysdeps/lyre/generic/generic.cpp
 new file mode 100644
-index 0000000..3aeeb26
+index 0000000..923fd07
 --- /dev/null
 +++ b/ports/mlibc-workdir/sysdeps/lyre/generic/generic.cpp
-@@ -0,0 +1,430 @@
+@@ -0,0 +1,439 @@
 +#include <bits/ensure.h>
 +#include <mlibc/debug.hpp>
 +#include <mlibc/all-sysdeps.hpp>
@@ -164,6 +164,7 @@ index 0000000..3aeeb26
 +#define SYSCALL_WAITPID     22
 +#define SYSCALL_EXIT        23
 +#define SYSCALL_READDIR     24
++#define SYSCALL_MUNMAP      25
 +
 +namespace mlibc {
 +
@@ -296,7 +297,13 @@ index 0000000..3aeeb26
 +    return 0;
 +}
 +
-+int sys_vm_unmap(void *pointer, size_t size) STUB_ONLY
++int sys_vm_unmap(void *pointer, size_t size) {
++    int ret, errno;
++    SYSCALL2(SYSCALL_MUNMAP, pointer, size);
++    if (ret == -1)
++        return errno;
++    return 0;
++}
 +
 +int sys_anon_allocate(size_t size, void **pointer) {
 +    int errno = sys_vm_map(NULL, size, PROT_EXEC | PROT_READ | PROT_WRITE,
@@ -304,7 +311,9 @@ index 0000000..3aeeb26
 +    return errno;
 +}
 +
-+int sys_anon_free(void *pointer, size_t size) STUB_ONLY
++int sys_anon_free(void *pointer, size_t size) {
++    return sys_vm_unmap(pointer, size);
++}
 +
 +pid_t sys_getpid() {
 +    pid_t ret;

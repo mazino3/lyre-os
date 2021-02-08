@@ -460,7 +460,7 @@ bool munmap(struct pagemap *pm, void *addr, size_t length) {
 }
 
 void *mmap(struct pagemap *pm, void *addr, size_t length, int prot, int flags,
-           struct resource *res, off_t offset) {
+           struct resource *res, off_t offset) {/*
     print("mmap(pm: %X, addr: %X, len: %X,\n"
           "     prot:  %s%s%s%s,\n"
           "     flags: %s%s%s%s);\n",
@@ -472,7 +472,7 @@ void *mmap(struct pagemap *pm, void *addr, size_t length, int prot, int flags,
           flags & MAP_SHARED    ? "MAP_SHARED ":"",
           flags & MAP_PRIVATE   ? "MAP_PRIVATE ":"",
           flags & MAP_FIXED     ? "MAP_FIXED ":"",
-          flags & MAP_ANONYMOUS ? "MAP_ANONYMOUS ":"");
+          flags & MAP_ANONYMOUS ? "MAP_ANONYMOUS ":"");*/
 
     if (length % PAGE_SIZE || length == 0) {
         print("mmap: length is not a multiple of PAGE_SIZE or is 0\n");
@@ -541,4 +541,16 @@ void syscall_mmap(struct cpu_gpr_context *ctx) {
 
     ctx->rax = (uint64_t)mmap(this_cpu->current_thread->process->pagemap,
                               addr, length, prot, flags, res, offset);
+}
+
+void syscall_munmap(struct cpu_gpr_context *ctx) {
+    void   *addr  = (void *) ctx->rdi;
+    size_t length = (size_t) ctx->rsi;
+
+    bool ret = munmap(this_cpu->current_thread->process->pagemap, addr, length);
+
+    if (ret == false)
+        ctx->rax = (uint64_t)-1;
+    else
+        ctx->rax = (uint64_t)0;
 }

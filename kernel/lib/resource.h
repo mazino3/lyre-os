@@ -23,9 +23,10 @@ struct resource {
 
     int     (*bind)(struct resource *this, const struct sockaddr *addr, socklen_t addrlen);
 
-    bool (*mmap)(struct resource *this, struct mmap_range_local *range,
-                 size_t memory_page, size_t file_page);
+    bool (*mmap)(struct resource *this, struct mmap_range_local *range);
     bool (*munmap)(struct resource *this, struct mmap_range_local *range);
+    bool (*mmap_hit)(struct resource *this, struct mmap_range_local *range,
+                     size_t memory_page, size_t file_page);
 };
 
 struct vfs_node;

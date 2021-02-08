@@ -126,6 +126,21 @@
     i;                                             \
 })
 
+#define DYNARRAY_REMOVE_BY_VALUE_AND_PACK(THIS, VALUE) ({    \
+    ssize_t i;                                               \
+    for (i = 0; i < (ssize_t)(THIS).length; i++) {           \
+        if ((THIS).storage[i] == (VALUE)) {                  \
+            for (size_t j = i + 1; j < (THIS).length; j++) { \
+                (THIS).storage[j-1] = (THIS).storage[j];     \
+            }                                                \
+            break;                                           \
+        }                                                    \
+    }                                                        \
+    if (i == (ssize_t)((THIS).length))                       \
+        i = -1;                                              \
+    i;                                                       \
+})
+
 #define DYNARRAY_REMOVE_AND_PACK(THIS, INDEX) ({           \
     for (size_t i = (INDEX) + 1; i < (THIS).length; i++) { \
         (THIS).storage[i-1] = (THIS).storage[i];           \

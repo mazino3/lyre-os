@@ -16,12 +16,6 @@ static enum {
     VMM_5LEVEL_PG
 } vmm_paging_type;
 
-struct pagemap {
-    lock_t lock;
-    uintptr_t *top_level;
-    DYNARRAY_STRUCT(struct mmap_range_local *) mmap_ranges;
-};
-
 struct pagemap *kernel_pagemap = NULL;
 
 struct event *page_fault_event;
@@ -74,37 +68,70 @@ static inline uintptr_t entries_to_virt_addr(size_t pml5_entry,
     return virt_addr;
 }
 
+static uintptr_t *virt2pte(struct pagemap *pagemap,
+                           uintptr_t virt_addr, bool allocate);
+
 struct pagemap *vmm_fork_pagemap(struct pagemap *old) {
     struct pagemap *new = vmm_new_pagemap();
 
-    // This is temporary
     SPINLOCK_ACQUIRE(old->lock);
 
-    uintptr_t *pml4 = (void*)old->top_level + MEM_PHYS_OFFSET;
-    for (size_t i = 0; i < 256; i++) {
-        if (pml4[i] & 1) {
-            uintptr_t *pdpt = (uintptr_t *)((pml4[i] & 0xfffffffffffff000) + MEM_PHYS_OFFSET);
-            for (size_t j = 0; j < 512; j++) {
-                if (pdpt[j] & 1) {
-                    uintptr_t *pd = (uintptr_t *)((pdpt[j] & 0xfffffffffffff000) + MEM_PHYS_OFFSET);
-                    for (size_t k = 0; k < 512; k++) {
-                        if (pd[k] & 1) {
-                            uintptr_t *pt = (uintptr_t *)((pd[k] & 0xfffffffffffff000) + MEM_PHYS_OFFSET);
-                            for (size_t l = 0; l < 512; l++) {
-                                if (pt[l] & 1) {
-                                    uintptr_t new_page = (uintptr_t)pmm_allocz(1);
-                                    memcpy((void *)(new_page + MEM_PHYS_OFFSET),
-                                           (void *)((pt[l] & 0xfffffffffffff000) + MEM_PHYS_OFFSET),
-                                           PAGE_SIZE);
-                                    vmm_map_page(new,
-                                                 entries_to_virt_addr(0, i, j, k, l),
-                                                 new_page,
-                                                 pt[l] & 0xfff);
-                                }
-                            }
-                        }
-                    }
+    for (size_t i = 0; i < old->mmap_ranges.length; i++) {
+        struct mmap_range_local *r = old->mmap_ranges.storage[i];
+        struct mmap_range_global *g = r->global;
+
+        struct mmap_range_local *new_range = alloc(sizeof(struct mmap_range_local));
+        *new_range = *r;
+
+        if (g->res != NULL) {
+            LOCKED_INC(g->res->refcount);
+        }
+
+        if (r->flags & MAP_SHARED) {
+            new_range->global = g;
+
+            DYNARRAY_PUSHBACK(g->pagemaps, new);
+
+            for (size_t i = r->base; i < r->base + r->length; i += PAGE_SIZE) {
+                uintptr_t *pte_old = virt2pte(old, i, false);
+                if (pte_old == NULL)
+                    continue;
+                uintptr_t *pte_new = virt2pte(new, i, true);
+                if (pte_new == NULL)
+                    continue;
+                *pte_new = *pte_old;
+            }
+        } else {
+            new_range->global = alloc(sizeof(struct mmap_range_global));
+            *new_range->global = *g;
+
+            new_range->global->pagemaps = (typeof(new_range->global->pagemaps)){0};
+
+            new_range->global->shadow_pagemap = (struct pagemap){0};
+            new_range->global->shadow_pagemap.top_level = pmm_allocz(1);
+
+            DYNARRAY_PUSHBACK(new_range->global->pagemaps, new);
+
+            if (r->flags & MAP_ANONYMOUS) {
+                for (size_t i = r->base; i < r->base + r->length; i += PAGE_SIZE) {
+                    uintptr_t *pte_old = virt2pte(old, i, false);
+                    if (pte_old == NULL)
+                        continue;
+                    uintptr_t *pte_new = virt2pte(new, i, true);
+                    if (pte_new == NULL)
+                        continue;
+                    uintptr_t *spte_new = virt2pte(&new_range->global->shadow_pagemap, i, true);
+                    if (spte_new == NULL)
+                        continue;
+                    void *page = pmm_allocz(1);
+                    memcpy(page + MEM_PHYS_OFFSET,
+                           (void*)(*pte_old & ~((uintptr_t)0xfff)) + MEM_PHYS_OFFSET,
+                           PAGE_SIZE);
+                    *pte_new = (*pte_old & ((uintptr_t)0xfff)) | (uintptr_t)page;
+                    *spte_new = *pte_new;
                 }
+            } else {
+                g->res->mmap(g->res, new_range);
             }
         }
     }
@@ -117,31 +144,12 @@ struct pagemap *vmm_fork_pagemap(struct pagemap *old) {
 bool vmm_erase_pagemap(struct pagemap *pagemap) {
     SPINLOCK_ACQUIRE(pagemap->lock);
 
-    uintptr_t *pml4 = (void*)pagemap->top_level + MEM_PHYS_OFFSET;
-    for (size_t i = 0; i < 256; i++) {
-        if (pml4[i] & 1) {
-            uintptr_t *pdpt = (uintptr_t *)((pml4[i] & 0xfffffffffffff000) + MEM_PHYS_OFFSET);
-            for (size_t j = 0; j < 512; j++) {
-                if (pdpt[j] & 1) {
-                    uintptr_t *pd = (uintptr_t *)((pdpt[j] & 0xfffffffffffff000) + MEM_PHYS_OFFSET);
-                    for (size_t k = 0; k < 512; k++) {
-                        if (pd[k] & 1) {
-                            uintptr_t *pt = (uintptr_t *)((pd[k] & 0xfffffffffffff000) + MEM_PHYS_OFFSET);
-                            for (size_t l = 0; l < 512; l++) {
-                                if (pt[l] & 1)
-                                    pmm_free((void *)(pt[l] & 0xfffffffffffff000), 1);
-                            }
-                            pmm_free((void *)(pd[k] & 0xfffffffffffff000), 1);
-                        }
-                    }
-                    pmm_free((void *)(pdpt[j] & 0xfffffffffffff000), 1);
-                }
-            }
-            pmm_free((void *)(pml4[i] & 0xfffffffffffff000), 1);
-        }
+    for (size_t i = 0; i < pagemap->mmap_ranges.length; i++) {
+        struct mmap_range_local *r = pagemap->mmap_ranges.storage[i];
+
+        munmap(pagemap, (void*)r->base, r->length);
     }
 
-    pmm_free((void *)pagemap->top_level, 1);
     free(pagemap);
     return true;
 }
@@ -228,7 +236,7 @@ level4:
 
 static uintptr_t virt2phys(struct pagemap *pagemap, uintptr_t virt_addr) {
     uintptr_t *pte_p = virt2pte(pagemap, virt_addr, false);
-    if (pte_p == NULL)
+    if (pte_p == NULL || !(*pte_p & PTE_PRESENT))
         return INVALID_PHYS;
 
     return *pte_p & ~((uintptr_t)0xfff);
@@ -299,6 +307,21 @@ static struct addr2range_hit addr2range(struct pagemap *pm, uintptr_t addr) {
     return (struct addr2range_hit){ .failed = true };
 }
 
+bool mmap_map_page_in_range(struct mmap_range_global *g, uintptr_t virt_addr,
+                            uintptr_t phys_addr, int prot) {
+    vmm_map_page(&g->shadow_pagemap, virt_addr, phys_addr,
+                 PTE_PRESENT | PTE_USER |
+                 (prot & PROT_WRITE ? PTE_WRITABLE : 0));
+
+    for (size_t i = 0; i < g->pagemaps.length; i++) {
+        vmm_map_page(g->pagemaps.storage[i], virt_addr, phys_addr,
+                     PTE_PRESENT | PTE_USER |
+                     (prot & PROT_WRITE ? PTE_WRITABLE : 0));
+    }
+
+    return true;
+}
+
 void _vmm_page_fault_handler(struct cpu_gpr_context *ctx, uintptr_t addr) {
     if (ctx->cs & 0x03) {
         swapgs();
@@ -321,23 +344,14 @@ void _vmm_page_fault_handler(struct cpu_gpr_context *ctx, uintptr_t addr) {
 
     if (hit.range->flags & MAP_ANONYMOUS) {
         void *page = pmm_allocz(1);
-        vmm_map_page(pagemap, hit.memory_page * PAGE_SIZE, (uintptr_t)page,
-                     PTE_PRESENT | PTE_USER |
-                     (hit.range->prot & PROT_WRITE ? PTE_WRITABLE : 0));
-        goto out;
+        mmap_map_page_in_range(hit.range->global, hit.memory_page * PAGE_SIZE,
+                               (uintptr_t)page, hit.range->prot);
+    } else {
+        hit.range->global->res->mmap_hit(hit.range->global->res, hit.range,
+                                         hit.memory_page,
+                                         hit.file_page);
     }
 
-    bool ret = hit.range->global->res->mmap(hit.range->global->res, hit.range,
-                                            hit.memory_page,
-                                            hit.file_page);
-
-    if (ret == true) {
-        SPINLOCK_ACQUIRE(pagemap->lock);
-        DYNARRAY_REMOVE_BY_VALUE(pagemap->mmap_ranges, hit.range);
-        LOCK_RELEASE(pagemap->lock);
-    }
-
-out:
     asm ("cli");
 
     if (ctx->cs & 0x03) {
@@ -364,14 +378,14 @@ bool mmap_range(struct pagemap *pm, uintptr_t virt_addr, uintptr_t phys_addr,
     range_global->base   = virt_addr;
     range_global->length = length;
 
+    range_global->shadow_pagemap.top_level = pmm_allocz(1);
+
     SPINLOCK_ACQUIRE(pm->lock);
     DYNARRAY_INSERT(pm->mmap_ranges, range_local);
     LOCK_RELEASE(pm->lock);
 
     for (size_t i = 0; i < length; i += PAGE_SIZE) {
-        vmm_map_page(pm, virt_addr + i, phys_addr + i,
-                     PTE_PRESENT | PTE_USER |
-                     (prot & PROT_WRITE ? PTE_WRITABLE : 0));
+        mmap_map_page_in_range(range_global, virt_addr + i, phys_addr + i, prot);
     }
 
     return true;
@@ -414,14 +428,19 @@ bool munmap(struct pagemap *pm, void *addr, size_t length) {
             unmap_page(pm, i);
 
         if (snip_size == r->length) {
-            DYNARRAY_REMOVE_BY_VALUE(pm->mmap_ranges, r);
+            DYNARRAY_REMOVE_BY_VALUE_AND_PACK(pm->mmap_ranges, r);
         }
 
         if (snip_size == r->length && g->pagemaps.length == 1) {
             if (r->flags & MAP_ANONYMOUS) {
                 for (uintptr_t i = g->base;
-                  i < g->base + g->length; i += PAGE_SIZE)
-                    pmm_free((void *)virt2phys(pm, i), 1);
+                  i < g->base + g->length; i += PAGE_SIZE) {
+                    uintptr_t p = virt2phys(&g->shadow_pagemap, i);
+                    if (p == INVALID_PHYS)
+                        continue;
+                    unmap_page(&g->shadow_pagemap, i);
+                    pmm_free((void*)p, 1);
+                }
             } else {
                 g->res->munmap(g->res, r);
             }
@@ -484,6 +503,8 @@ void *mmap(struct pagemap *pm, void *addr, size_t length, int prot, int flags,
     range_global->length = length;
     range_global->res    = res;
     range_global->offset = offset;
+
+    range_global->shadow_pagemap.top_level = pmm_allocz(1);
 
     SPINLOCK_ACQUIRE(pm->lock);
     DYNARRAY_INSERT(pm->mmap_ranges, range_local);

@@ -53,8 +53,13 @@ static int stub_bind(struct resource *this, const struct sockaddr *addr, socklen
     return -1;
 }
 
-static bool stub_mmap(struct resource *this, struct mmap_range_local *range,
-                      size_t memory_page, size_t file_page) {
+static bool stub_mmap_hit(struct resource *this, struct mmap_range_local *range,
+                          size_t memory_page, size_t file_page) {
+    print("unhandled mmap_hit\n");
+    return false;
+}
+
+static bool stub_mmap(struct resource *this, struct mmap_range_local *range) {
     print("unhandled mmap\n");
     return false;
 }
@@ -69,13 +74,14 @@ void *resource_create(size_t actual_size) {
 
     new->actual_size = actual_size;
 
-    new->close  = stub_close;
-    new->read   = stub_read;
-    new->write  = stub_write;
-    new->ioctl  = stub_ioctl;
-    new->bind   = stub_bind;
-    new->mmap   = stub_mmap;
-    new->munmap = stub_munmap;
+    new->close    = stub_close;
+    new->read     = stub_read;
+    new->write    = stub_write;
+    new->ioctl    = stub_ioctl;
+    new->bind     = stub_bind;
+    new->mmap     = stub_mmap;
+    new->munmap   = stub_munmap;
+    new->mmap_hit = stub_mmap_hit;
 
     return new;
 }

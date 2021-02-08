@@ -32,9 +32,14 @@
 
 #define MAP_FAILED ((void *)-1)
 
-struct pagemap;
+struct pagemap {
+    lock_t lock;
+    uintptr_t *top_level;
+    DYNARRAY_STRUCT(struct mmap_range_local *) mmap_ranges;
+};
 
 struct mmap_range_global {
+    struct pagemap shadow_pagemap;
     DYNARRAY_STRUCT(struct pagemap *) pagemaps;
     struct resource *res;
     uintptr_t base;
@@ -65,6 +70,7 @@ bool mmap_range(struct pagemap *pagemap, uintptr_t virt_addr, uintptr_t phys_add
                    size_t length, int prot, int flags);
 void *mmap(struct pagemap *pm, void *addr, size_t length, int prot, int flags,
            struct resource *res, off_t offset);
+bool munmap(struct pagemap *pm, void *addr, size_t length);
 
 void vmm_page_fault_handler(void);
 

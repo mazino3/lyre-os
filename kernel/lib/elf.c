@@ -59,16 +59,16 @@ bool elf_load(struct pagemap *pagemap, struct resource *file, uintptr_t base,
 
                 (*ld_path)[phdr[i].p_filesz] = 0;
 
-                break;
+                continue;
             }
             case PT_PHDR: {
                 auxval->at_phdr = base + phdr[i].p_vaddr;
-                break;
+                continue;
             }
-            default:
-                if (phdr[i].p_type != PT_LOAD)
-                    continue;
         }
+
+        if (phdr[i].p_type != PT_LOAD)
+            continue;
 
         size_t misalign   = phdr[i].p_vaddr & (PAGE_SIZE - 1);
         size_t page_count = DIV_ROUNDUP(misalign + phdr[i].p_memsz, PAGE_SIZE);

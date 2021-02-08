@@ -145,10 +145,7 @@ epilogue:
         }
     }
 
-    if (last)
-        errno = ENOENT;
-    else
-        errno = ENOTDIR;
+    errno = ENOENT;
 
     return NULL;
 }

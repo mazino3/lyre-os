@@ -11,11 +11,12 @@ AS   = nasm
 
 CFLAGS    = -Wall -Wextra -g -O2
 ASFLAGS   = -F dwarf -g
-LDFLAGS   = -Og
+LDFLAGS   = -O2
 
-CHARDFLAGS := ${CFLAGS} -std=gnu11 -fplan9-extensions -masm=intel -fno-pic -mno-80387 -mno-mmx \
-    -mno-sse -mno-sse2 -mno-red-zone -mcmodel=kernel -ffreestanding \
-    -fno-stack-protector -fno-omit-frame-pointer
+CHARDFLAGS := ${CFLAGS} -std=gnu11 -fplan9-extensions -masm=intel -fno-pic \
+    -mno-80387 -mno-mmx -mno-sse -mno-sse2 \
+    -mno-red-zone -mcmodel=kernel -ffreestanding \
+    -fno-stack-protector
 ASHARDFLAGS   := ${ASFLAGS} -felf64
 LDHARDFLAGS   := ${LDFLAGS} -nostdlib -no-pie -z max-page-size=0x1000
 QEMUHARDFLAGS := ${QEMUFLAGS}

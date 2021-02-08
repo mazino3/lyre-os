@@ -40,7 +40,7 @@ struct pagemap {
 
 struct mmap_range_global {
     struct pagemap shadow_pagemap;
-    DYNARRAY_STRUCT(struct pagemap *) pagemaps;
+    DYNARRAY_STRUCT(struct mmap_range_local *) locals;
     struct resource *res;
     uintptr_t base;
     size_t    length;
@@ -48,6 +48,7 @@ struct mmap_range_global {
 };
 
 struct mmap_range_local {
+    struct pagemap *pagemap;
     struct mmap_range_global *global;
     uintptr_t base;
     size_t    length;

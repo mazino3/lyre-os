@@ -90,7 +90,7 @@ struct pagemap *vmm_fork_pagemap(struct pagemap *old) {
         if (r->flags & MAP_SHARED) {
             new_range->global = g;
 
-            DYNARRAY_PUSHBACK(g->pagemaps, new);
+            DYNARRAY_PUSHBACK(g->locals, new_range);
 
             for (size_t i = r->base; i < r->base + r->length; i += PAGE_SIZE) {
                 uintptr_t *pte_old = virt2pte(old, i, false);
@@ -105,12 +105,12 @@ struct pagemap *vmm_fork_pagemap(struct pagemap *old) {
             new_range->global = alloc(sizeof(struct mmap_range_global));
             *new_range->global = *g;
 
-            new_range->global->pagemaps = (typeof(new_range->global->pagemaps)){0};
+            new_range->global->locals = (typeof(new_range->global->locals)){0};
 
             new_range->global->shadow_pagemap = (struct pagemap){0};
             new_range->global->shadow_pagemap.top_level = pmm_allocz(1);
 
-            DYNARRAY_PUSHBACK(new_range->global->pagemaps, new);
+            DYNARRAY_PUSHBACK(new_range->global->locals, new_range);
 
             if (r->flags & MAP_ANONYMOUS) {
                 for (size_t i = r->base; i < r->base + r->length; i += PAGE_SIZE) {
@@ -313,8 +313,11 @@ bool mmap_map_page_in_range(struct mmap_range_global *g, uintptr_t virt_addr,
                  PTE_PRESENT | PTE_USER |
                  (prot & PROT_WRITE ? PTE_WRITABLE : 0));
 
-    for (size_t i = 0; i < g->pagemaps.length; i++) {
-        vmm_map_page(g->pagemaps.storage[i], virt_addr, phys_addr,
+    for (size_t i = 0; i < g->locals.length; i++) {
+        struct mmap_range_local *l = g->locals.storage[i];
+        if (virt_addr < l->base || virt_addr >= l->base + l->length)
+            continue;
+        vmm_map_page(g->locals.storage[i]->pagemap, virt_addr, phys_addr,
                      PTE_PRESENT | PTE_USER |
                      (prot & PROT_WRITE ? PTE_WRITABLE : 0));
     }
@@ -368,13 +371,14 @@ bool mmap_range(struct pagemap *pm, uintptr_t virt_addr, uintptr_t phys_addr,
     struct mmap_range_local  *range_local  = pool;
     struct mmap_range_global *range_global = pool + sizeof(struct mmap_range_local);
 
-    range_local->global = range_global;
-    range_local->base   = virt_addr;
-    range_local->length = length;
-    range_local->prot   = prot;
-    range_local->flags  = flags;
+    range_local->pagemap = pm;
+    range_local->global  = range_global;
+    range_local->base    = virt_addr;
+    range_local->length  = length;
+    range_local->prot    = prot;
+    range_local->flags   = flags;
 
-    DYNARRAY_INSERT(range_global->pagemaps, pm);
+    DYNARRAY_INSERT(range_global->locals, range_local);
     range_global->base   = virt_addr;
     range_global->length = length;
 
@@ -431,7 +435,7 @@ bool munmap(struct pagemap *pm, void *addr, size_t length) {
             DYNARRAY_REMOVE_BY_VALUE_AND_PACK(pm->mmap_ranges, r);
         }
 
-        if (snip_size == r->length && g->pagemaps.length == 1) {
+        if (snip_size == r->length && g->locals.length == 1) {
             if (r->flags & MAP_ANONYMOUS) {
                 for (uintptr_t i = g->base;
                   i < g->base + g->length; i += PAGE_SIZE) {
@@ -491,14 +495,15 @@ void *mmap(struct pagemap *pm, void *addr, size_t length, int prot, int flags,
     struct mmap_range_local  *range_local  = pool;
     struct mmap_range_global *range_global = pool + sizeof(struct mmap_range_local);
 
-    range_local->global = range_global;
-    range_local->base   = base;
-    range_local->length = length;
-    range_local->offset = offset;
-    range_local->prot   = prot;
-    range_local->flags  = flags;
+    range_local->pagemap = pm;
+    range_local->global  = range_global;
+    range_local->base    = base;
+    range_local->length  = length;
+    range_local->offset  = offset;
+    range_local->prot    = prot;
+    range_local->flags   = flags;
 
-    DYNARRAY_INSERT(range_global->pagemaps, pm);
+    DYNARRAY_INSERT(range_global->locals, range_local);
     range_global->base   = base;
     range_global->length = length;
     range_global->res    = res;

@@ -3,9 +3,9 @@
 sources:
   - name: binutils
     subdir: 'ports'
-    url: 'https://ftp.gnu.org/gnu/binutils/binutils-2.36.tar.xz'
+    url: 'https://ftp.gnu.org/gnu/binutils/binutils-2.36.1.tar.xz'
     format: 'tar.xz'
-    extract_path: 'binutils-2.36'
+    extract_path: 'binutils-2.36.1'
     patch-path-strip: 3
 
   - name: gcc

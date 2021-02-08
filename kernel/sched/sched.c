@@ -199,24 +199,40 @@ void syscall_waitpid(struct cpu_gpr_context *ctx) {
     int   options = (int)   ctx->rdx;
 
     struct process *process = this_cpu->current_thread->process;
+    struct process *child = NULL;
 
     struct event **events;
+    size_t events_i;
 
     if (pid == -1) {
         events = alloc(process->children.length * sizeof(struct event *));
+        events_i = process->children.length;
         for (size_t i = 0; i < process->children.length; i++) {
             events[i] = process->children.storage[i]->event;
         }
-    } else {
+    } else if (pid < -1 || pid == 0) {
         print("\nwaitpid: value of pid %d not supported\n", pid);
         errno = EINVAL;
         ctx->rax = (uint64_t)-1;
         return;
+    } else {
+        if (pid >= processes.length) {
+            goto badchild;
+        }
+        child = processes.storage[pid];
+        if (child == NULL || child->ppid != process->pid) {
+badchild:
+            errno = ECHILD;
+            ctx->rax = (uint64_t)-1;
+            return;
+        }
+        events = alloc(sizeof(struct event *));
+        events[0] = child->event;
+        events_i = 1;
     }
 
     ssize_t which;
-    events_await(events, &which, process->children.length,
-                 options & WNOHANG);
+    events_await(events, &which, events_i, options & WNOHANG);
     free(events);
 
     if (which == -1) {
@@ -224,7 +240,8 @@ void syscall_waitpid(struct cpu_gpr_context *ctx) {
         return;
     }
 
-    struct process *child = process->children.storage[which];
+    if (child == NULL)
+        child = process->children.storage[which];
 
     *status = child->status;
     ctx->rax = (uint64_t)child->pid;

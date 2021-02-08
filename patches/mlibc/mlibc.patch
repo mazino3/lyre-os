@@ -77,7 +77,7 @@ index 0000000..ee7a794
 +
 diff --git a/ports/mlibc-workdir/sysdeps/lyre/generic/generic.cpp b/ports/mlibc-workdir/sysdeps/lyre/generic/generic.cpp
 new file mode 100644
-index 0000000..ddc5004
+index 0000000..3aeeb26
 --- /dev/null
 +++ b/ports/mlibc-workdir/sysdeps/lyre/generic/generic.cpp
 @@ -0,0 +1,430 @@
@@ -492,7 +492,7 @@ index 0000000..ddc5004
 +
 +int sys_sigaction(int signum, const struct sigaction *act, struct sigaction *oldact) {
 +    mlibc::infoLogger() << "mlibc: " << __func__ << " is a stub!\n" << frg::endlog;
-+    return ENOSYS;
++    return 0;
 +}
 +
 +int sys_pselect(int num_fds, fd_set *read_set, fd_set *write_set, fd_set *except_set,

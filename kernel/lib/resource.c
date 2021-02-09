@@ -69,6 +69,10 @@ static bool stub_munmap(struct resource *this, struct mmap_range_local *range) {
     return false;
 }
 
+static bool stub_grow(struct resource *this, size_t new_size) {
+    return false;
+}
+
 void *resource_create(size_t actual_size) {
     struct resource *new = alloc(actual_size);
 
@@ -79,6 +83,7 @@ void *resource_create(size_t actual_size) {
     new->write    = stub_write;
     new->ioctl    = stub_ioctl;
     new->bind     = stub_bind;
+    new->grow     = stub_grow;
     new->mmap     = stub_mmap;
     new->munmap   = stub_munmap;
     new->mmap_hit = stub_mmap_hit;

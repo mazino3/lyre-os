@@ -636,11 +636,20 @@ void syscall_seek(struct cpu_gpr_context *ctx) {
             return;
     }
 
-    if (base < 0 || base > handle->res->st.st_size) {
+    if (base < 0) {
         errno = EINVAL;
         ctx->rax = (uint64_t)-1;
         LOCK_RELEASE(vfs_lock);
         return;
+    }
+
+    if (base > handle->res->st.st_size) {
+        if (!handle->res->grow(handle->res, base)) {
+            errno = EINVAL;
+            ctx->rax = (uint64_t)-1;
+            LOCK_RELEASE(vfs_lock);
+            return;
+        }
     }
 
     handle->loc = base;

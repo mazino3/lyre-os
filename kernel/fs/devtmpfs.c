@@ -114,6 +114,25 @@ static int devtmpfs_close(struct resource *_this) {
     return 0;
 }
 
+static bool devtmpfs_grow(struct resource *_this, size_t new_size) {
+    struct tmpfs_resource *this = (void *)_this;
+
+    if (!SPINLOCK_ACQUIRE(this->lock)) {
+        return -1;
+    }
+
+    while (new_size > this->allocated_size)
+        this->allocated_size *= 2;
+
+    this->data = realloc(this->data, this->allocated_size);
+
+    this->st.st_size = new_size;
+
+    LOCK_RELEASE(this->lock);
+
+    return true;
+}
+
 static struct resource *devtmpfs_open(struct vfs_node *node, bool create, mode_t mode) {
     if (!create)
         return NULL;
@@ -132,6 +151,7 @@ static struct resource *devtmpfs_open(struct vfs_node *node, bool create, mode_t
     res->close          = devtmpfs_close;
     res->read           = devtmpfs_read;
     res->write          = devtmpfs_write;
+    res->grow           = devtmpfs_grow;
 
     return (void *)res;
 }

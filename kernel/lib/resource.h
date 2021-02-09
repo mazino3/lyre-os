@@ -23,6 +23,8 @@ struct resource {
 
     int     (*bind)(struct resource *this, const struct sockaddr *addr, socklen_t addrlen);
 
+    bool (*grow)(struct resource *this, size_t new_size);
+
     bool (*mmap)(struct resource *this, struct mmap_range_local *range);
     bool (*munmap)(struct resource *this, struct mmap_range_local *range);
     bool (*mmap_hit)(struct resource *this, struct mmap_range_local *range,

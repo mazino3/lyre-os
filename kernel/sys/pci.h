@@ -1,5 +1,5 @@
-#ifndef __PCI_H__
-#define __PCI_H__
+#ifndef __SYS__PCI_H__
+#define __SYS__PCI_H__
 
 #include <stdint.h>
 #include <stddef.h>
@@ -115,7 +115,6 @@ static struct pci_vendor_driver drv = {\
 };\
 __attribute__((section(".drivers")))\
 void* ptr = &drv;\
-
 
 uint8_t pci_read_device_byte(struct pci_device *device, uint32_t offset);
 void pci_write_device_byte(struct pci_device *device, uint32_t offset, uint8_t value);

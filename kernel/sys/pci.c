@@ -1,4 +1,3 @@
-
 #include <sys/port_io.h>
 #include <stdint.h>
 #include <sys/pci.h>
@@ -10,9 +9,7 @@
 #define MAX_DEVICE 32
 #define MAX_BUS 256
 
-DYNARRAY_NEW(struct pci_device*, pci_devices);
-
-size_t available_devices;
+DYNARRAY_NEW(struct pci_device *, pci_devices);
 
 #define BYTE  0
 #define WORD  1
@@ -107,7 +104,7 @@ void pci_enable_busmastering(struct pci_device *device) {
 
 struct pci_device *pci_get_device(uint8_t class, uint8_t subclass, uint8_t prog_if, size_t index) {
     size_t dindex = 0;
-    for (size_t i = 0; i < available_devices; i++) {
+    for (size_t i = 0; i < pci_devices.length; i++) {
         struct pci_device *dev = pci_devices.storage[i];
         if (dev->device_class == class && dev->subclass == subclass && dev->prog_if == prog_if) {
             if (dindex != index) {
@@ -122,7 +119,7 @@ struct pci_device *pci_get_device(uint8_t class, uint8_t subclass, uint8_t prog_
 
 struct pci_device *pci_get_device_by_vendor(uint16_t vendor, uint16_t id, size_t index) {
     size_t dindex = 0;
-    for (size_t i = 0; i < available_devices; i++) {
+    for (size_t i = 0; i < pci_devices.length; i++) {
         struct pci_device *dev = pci_devices.storage[i];
         if (dev->vendor_id == vendor && dev->device_id == id) {
             if (dindex != index) {
@@ -166,7 +163,6 @@ static void pci_check_function(uint8_t bus, uint8_t slot, uint8_t func, int64_t 
         device->multifunction = 0;
 
     size_t id = DYNARRAY_INSERT(pci_devices, device);
-    available_devices++;
 
     if (device->device_class == 0x06 && device->subclass == 0x04) {
         // pci to pci bridge
@@ -263,7 +259,7 @@ int pci_register_msi(struct pci_device *device, uint8_t vector) {
     return 1;
 }
 
-void pci_driver_dispatch() {
+static void pci_driver_dispatch(void) {
     FOR_DRIVER_TYPE(DRIVER_PCI, struct pci_driver, {
                struct pci_device* dev;
                int i = 0;
@@ -292,7 +288,7 @@ void pci_driver_dispatch() {
 void pci_init(void) {
     pci_init_root_bus();
 
-    for (size_t i = 0; i < available_devices; i++) {
+    for (size_t i = 0; i < pci_devices.length; i++) {
           struct pci_device *dev = pci_devices.storage[i];
 
           print("pci:\t%x:%x:%x %x:%x\n", dev->bus, dev->device, dev->func, dev->vendor_id, dev->device_id);

@@ -64,37 +64,54 @@ union msi_data {
 
 #define MATCH_VENDOR    0
 #define MATCH_CLASS     1
+#define NUMARGS(...)  (sizeof((int[]){0, ##__VA_ARGS__})/sizeof(int)-1)
 
-struct pci_driver {
-    struct driver;
-    uint8_t match_flags;
-    bool (*init)(struct pci_device* dev);
-    uint16_t device_id;
+struct pci_vendor_devinfo {
     uint16_t vendor_id;
+    uint16_t device_id;
+};
+
+struct pci_class_devinfo {
     uint8_t device_subclass;
     uint8_t device_class;
     uint8_t device_prog_if;
 };
 
-#define PCI_CLASS_DRIVER(class, subclass, prog_if, init_fun)\
-static struct pci_driver drv = {\
+struct pci_driver {
+    struct driver;
+    uint8_t match_flags;
+    bool (*init)(struct pci_device* dev);
+    size_t if_cnt;
+};
+
+struct pci_class_driver {
+    struct pci_driver;
+    struct pci_class_devinfo cinfo[];
+};
+
+struct pci_vendor_driver {
+    struct pci_driver;
+    struct pci_vendor_devinfo vinfo[];
+};
+
+#define PCI_CLASS_DRIVER(init_fun, ...)\
+static struct pci_class_driver drv = {\
     .driver_type = DRIVER_PCI,\
     .match_flags = MATCH_CLASS,\
     .init = init_fun,\
-    .device_class = class,\
-    .device_subclass = subclass,\
-    .device_class = prog_if\
+    .if_cnt = NUMARGS(__VA_ARGS__),\
+    .cinfo = {__VA_ARGS__}\
 };\
 __attribute__((section(".drivers")))\
 void* ptr = &drv;\
 
-#define PCI_VENDOR_DRIVER(vendor, devid, init_fun)\
-static struct pci_driver drv = {\
+#define PCI_VENDOR_DRIVER(init_fun, ...)\
+static struct pci_vendor_driver drv = {\
     .driver_type = DRIVER_PCI,\
     .match_flags = MATCH_VENDOR,\
     .init = init_fun,\
-    .vendor_id = vendor,\
-    .device_id = devid\
+    .if_cnt = NUMARGS(__VA_ARGS__),\
+    .vinfo = {__VA_ARGS__}\
 };\
 __attribute__((section(".drivers")))\
 void* ptr = &drv;\

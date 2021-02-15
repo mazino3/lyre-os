@@ -268,14 +268,22 @@ void pci_driver_dispatch() {
                struct pci_device* dev;
                int i = 0;
                if (driver->match_flags == MATCH_CLASS) {
-                    while (dev = pci_get_device(driver->device_class, driver->device_subclass, driver->device_prog_if, i)) {
-                        i++;
-                        driver->init(dev);
+                    for (size_t k = 0; k < driver->if_cnt; k++) {
+                        struct pci_class_devinfo info = ((struct pci_class_driver*)driver)->cinfo[k];
+                        while (dev = pci_get_device(info.device_class, info.device_subclass, info.device_prog_if, k)) {
+                            i++;
+                            driver->init(dev);
+                        }
                     }
                } else if (driver->match_flags == MATCH_VENDOR) {
-                    while (dev = pci_get_device_by_vendor(driver->vendor_id, driver->device_id, i)) {
-                        i++;
-                        driver->init(dev);
+                    for (size_t k = 0; k < driver->if_cnt; k++) {
+                        struct pci_vendor_devinfo info = ((struct pci_vendor_driver*)driver)->vinfo[k];
+                        print("driver found: %x\n", info.vendor_id);
+                        while (dev = pci_get_device_by_vendor(info.vendor_id, info.device_id, i)) {
+                            i++;
+                            driver->init(dev);
+                        }
+                        i = 0;
                     }
                }
             });

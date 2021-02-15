@@ -41,8 +41,8 @@ struct driver {
 extern symbol drivers_start;
 extern symbol drivers_end;
 
-#define FOR_DRIVER_TYPE(k, type, body) for (size_t i = 0; i < ((uintptr_t)drivers_end - (uintptr_t)drivers_start); i += sizeof(uintptr_t)) {\
-    type* driver = *((type**)((uintptr_t)drivers_start + i));\
+#define FOR_DRIVER_TYPE(k, type, body) for (size_t _i = 0; _i < ((uintptr_t)drivers_end - (uintptr_t)drivers_start); _i += sizeof(uintptr_t)) {\
+    type* driver = *((type**)((uintptr_t)drivers_start + _i));\
     if (driver->driver_type == k) {\
         body;\
     }\

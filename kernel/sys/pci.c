@@ -4,6 +4,7 @@
 #include <lib/alloc.h>
 #include <lib/dynarray.h>
 #include <dev/dev.h>
+#include <lib/print.h>
 
 #define MAX_FUNCTION 8
 #define MAX_DEVICE 32
@@ -266,7 +267,7 @@ static void pci_driver_dispatch(void) {
                if (driver->match_flags == MATCH_CLASS) {
                     for (size_t k = 0; k < driver->if_cnt; k++) {
                         struct pci_class_devinfo info = ((struct pci_class_driver*)driver)->cinfo[k];
-                        while (dev = pci_get_device(info.device_class, info.device_subclass, info.device_prog_if, k)) {
+                        while ((dev = pci_get_device(info.device_class, info.device_subclass, info.device_prog_if, k))) {
                             i++;
                             driver->init(dev);
                         }
@@ -275,7 +276,7 @@ static void pci_driver_dispatch(void) {
                     for (size_t k = 0; k < driver->if_cnt; k++) {
                         struct pci_vendor_devinfo info = ((struct pci_vendor_driver*)driver)->vinfo[k];
                         print("driver found: %x\n", info.vendor_id);
-                        while (dev = pci_get_device_by_vendor(info.vendor_id, info.device_id, i)) {
+                        while ((dev = pci_get_device_by_vendor(info.vendor_id, info.device_id, i))) {
                             i++;
                             driver->init(dev);
                         }

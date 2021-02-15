@@ -102,8 +102,8 @@ static struct pci_class_driver drv = {\
     .if_cnt = NUMARGS(__VA_ARGS__),\
     .cinfo = {__VA_ARGS__}\
 };\
-__attribute__((section(".drivers")))\
-void* ptr = &drv;\
+__attribute__((section(".drivers"), used))\
+static void* _ptr = &drv;\
 
 #define PCI_VENDOR_DRIVER(init_fun, ...)\
 static struct pci_vendor_driver drv = {\
@@ -113,8 +113,8 @@ static struct pci_vendor_driver drv = {\
     .if_cnt = NUMARGS(__VA_ARGS__),\
     .vinfo = {__VA_ARGS__}\
 };\
-__attribute__((section(".drivers")))\
-void* ptr = &drv;\
+__attribute__((section(".drivers"), used))\
+static void* _ptr = &drv;\
 
 uint8_t pci_read_device_byte(struct pci_device *device, uint32_t offset);
 void pci_write_device_byte(struct pci_device *device, uint32_t offset, uint8_t value);

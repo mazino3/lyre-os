@@ -64,6 +64,7 @@ void vmm_switch_pagemap(struct pagemap *pagemap);
 struct pagemap *vmm_new_pagemap(void);
 struct pagemap *vmm_fork_pagemap(struct pagemap *old);
 bool vmm_erase_pagemap(struct pagemap *pagemap);
+uintptr_t virt2phys(struct pagemap *pagemap, uintptr_t virt_addr);
 bool vmm_map_page(struct pagemap *pagemap, uintptr_t virt_addr, uintptr_t phys_addr,
                   uintptr_t flags);
 

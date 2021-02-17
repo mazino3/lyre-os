@@ -234,7 +234,11 @@ level4:
 
 #define INVALID_PHYS ((uintptr_t)0xffffffffffffffff)
 
-static uintptr_t virt2phys(struct pagemap *pagemap, uintptr_t virt_addr) {
+uintptr_t virt2phys(struct pagemap *pagemap, uintptr_t virt_addr) {
+    if (!pagemap) {
+        pagemap = this_cpu->current_thread->process->pagemap;
+    }
+
     uintptr_t *pte_p = virt2pte(pagemap, virt_addr, false);
     if (pte_p == NULL || !(*pte_p & PTE_PRESENT))
         return INVALID_PHYS;

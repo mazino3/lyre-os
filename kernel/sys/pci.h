@@ -72,8 +72,8 @@ struct pci_vendor_devinfo {
 };
 
 struct pci_class_devinfo {
-    uint8_t device_subclass;
     uint8_t device_class;
+    uint8_t device_subclass;
     uint8_t device_prog_if;
 };
 

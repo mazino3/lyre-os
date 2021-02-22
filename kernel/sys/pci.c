@@ -267,15 +267,15 @@ static void pci_driver_dispatch(void) {
                if (driver->match_flags == MATCH_CLASS) {
                     for (size_t k = 0; k < driver->if_cnt; k++) {
                         struct pci_class_devinfo info = ((struct pci_class_driver*)driver)->cinfo[k];
-                        while ((dev = pci_get_device(info.device_class, info.device_subclass, info.device_prog_if, k))) {
+                        while ((dev = pci_get_device(info.device_class, info.device_subclass, info.device_prog_if, i))) {
                             i++;
                             driver->init(dev);
                         }
+                        i = 0;
                     }
                } else if (driver->match_flags == MATCH_VENDOR) {
                     for (size_t k = 0; k < driver->if_cnt; k++) {
                         struct pci_vendor_devinfo info = ((struct pci_vendor_driver*)driver)->vinfo[k];
-                        print("driver found: %x\n", info.vendor_id);
                         while ((dev = pci_get_device_by_vendor(info.vendor_id, info.device_id, i))) {
                             i++;
                             driver->init(dev);
@@ -292,7 +292,7 @@ void pci_init(void) {
     for (size_t i = 0; i < pci_devices.length; i++) {
           struct pci_device *dev = pci_devices.storage[i];
 
-          print("pci:\t%x:%x:%x %x:%x\n", dev->bus, dev->device, dev->func, dev->vendor_id, dev->device_id);
+          print("pci:\t%x:%x:%x %x:%x %x:%x:%x\n", dev->bus, dev->device, dev->func, dev->vendor_id, dev->device_id, dev->device_class, dev->subclass, dev->prog_if);
 
     }
     pci_driver_dispatch();

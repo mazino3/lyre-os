@@ -16,7 +16,7 @@ distclean: clean
 
 QEMU_FLAGS :=       \
     $(QEMU_FLAGS)   \
-    -m 2G           \
+    -m 4G           \
     -net none       \
     -debugcon stdio \
     -d cpu_reset    \
@@ -24,5 +24,13 @@ QEMU_FLAGS :=       \
     -hda lyre.hdd   \
     -enable-kvm -cpu host,+invtsc
 
+ovmf:
+	mkdir -p ovmf
+	cd ovmf && wget https://efi.akeo.ie/OVMF/OVMF-X64.zip && 7z x OVMF-X64.zip
+
 run:
 	qemu-system-x86_64 $(QEMU_FLAGS)
+
+uefi-run:
+	$(MAKE) ovmf
+	qemu-system-x86_64 -L ovmf -bios ovmf/OVMF.fd $(QEMU_FLAGS)

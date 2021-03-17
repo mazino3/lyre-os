@@ -11,7 +11,7 @@ fi
 
 # Accepted host OSes else fail.
 OS=$(uname)
-if ! [ "$OS" = "Linux" ] && ! [ "$OS" = "FreeBSD" ]; then
+if ! [ "$OS" = "Linux" ]; then
     echo "Host OS \"$OS\" is not supported."
     exit 1
 fi
@@ -42,52 +42,38 @@ x86_64-lyre-gcc -Ibuild/system-root/usr/include/libdrm -ldrm init/init.c -o "$BU
 
 if ! [ -f ./lyre.hdd ]; then
     dd if=/dev/zero bs=1M count=0 seek="$IMGSIZE" of=lyre.hdd
-
-    case "$OS" in
-    "FreeBSD")
-        sudo mdconfig -a -t vnode -f lyre.hdd -u md9
-        sudo gpart create -s mbr md9
-        sudo gpart add -a 4k -t '!14' md9
-        sudo mdconfig -d -u md9
-        ;;
-    "Linux")
-        parted -s lyre.hdd mklabel msdos
-        parted -s lyre.hdd mkpart primary 1 100%
-        ;;
-    esac
-
-    echfs-utils -m -p0 lyre.hdd quick-format 32768
 fi
 
 # Install limine
 if ! [ -d limine ]; then
-    git clone https://github.com/limine-bootloader/limine.git --depth=1 --branch=v1.0-branch
-    make -C limine
+    git clone https://github.com/limine-bootloader/limine.git --depth=1 --branch=v2.0-branch-binary
 fi
-limine/limine-install lyre.hdd
 
 # Prepare root
 cp -r root/* "$BUILD_DIR"/system-root/
 
-install -m 644 "$LYRE_DIR"/lyre.elf "$BUILD_DIR"/system-root/
-install -d "$BUILD_DIR"/system-root/etc
-install -m 644 /etc/localtime "$BUILD_DIR"/system-root/etc/
+cp "$LYRE_DIR"/lyre.elf "$BUILD_DIR"/system-root/
+cp limine/limine.sys "$BUILD_DIR"/system-root/
+mkdir -p "$BUILD_DIR"/system-root/EFI/BOOT
+cp limine/BOOTX64.EFI "$BUILD_DIR"/system-root/EFI/BOOT/
+mkdir -p "$BUILD_DIR"/system-root/etc
+cp /etc/localtime "$BUILD_DIR"/system-root/etc/
 
 ( cd "$BUILD_DIR"/system-root && tar -zcf ../../initramfs.tar.gz * )
 
-echfs-utils -m -p0 lyre.hdd import root/limine.cfg limine.cfg
-echfs-utils -m -p0 lyre.hdd import "$LYRE_DIR"/lyre.elf lyre.elf
-echfs-utils -m -p0 lyre.hdd import initramfs.tar.gz initramfs.tar.gz
+parted -s lyre.hdd mklabel gpt
+parted -s lyre.hdd mkpart primary 2048s 100%
 
-exit 0
+rm -rf mnt
+mkdir mnt
+sudo losetup -Pf --show lyre.hdd > loopback_dev
+sudo partprobe `cat loopback_dev`
+sudo mkfs.fat -F 32 `cat loopback_dev`p1
+sudo mount `cat loopback_dev`p1 mnt
+sudo rsync -ru --copy-links --info=progress2 "$BUILD_DIR"/system-root/* mnt
+sudo cp initramfs.tar.gz mnt/
+sync
+sudo umount mnt/
+sudo losetup -d `cat loopback_dev`
 
-if [ "$USE_FUSE" = "no" ]; then
-    ./copy-root-to-img.sh "$BUILD_DIR"/system-root lyre.hdd 0
-else
-    mkdir -p mnt
-    echfs-fuse --mbr -p0 lyre.hdd mnt
-    rsync -ru --copy-links --info=progress2 "$BUILD_DIR"/system-root/* mnt
-    sync
-    fusermount -u mnt/
-    rm -rf ./mnt
-fi
+limine/limine-install-linux-x86_64 lyre.hdd

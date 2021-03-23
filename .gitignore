@@ -6,6 +6,7 @@ ports
 limine
 *.o
 *.hdd
+*.hdd.1
 *.bin
 *.elf
 *gz

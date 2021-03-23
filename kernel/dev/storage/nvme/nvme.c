@@ -621,13 +621,13 @@ ssize_t nvme_read(struct resource *this, void *buf, off_t loc, size_t count) {
 
     size_t jbuf_size = nvme_devices.storage[num]->max_lba * lba_size;
 
-    size_t progress = 0;
-    while (progress < count) {
-        void *lloc = (void*)((uintptr_t)buf + progress);
-        size_t size = ((count - progress) > jbuf_size) ? jbuf_size : (count - progress);
-        nvme_rw_lba(this_nvme->dev, nvme_devices.storage[num]->jumpbuf, progress / lba_size, size / lba_size, 0);
-        memcpy(lloc, nvme_devices.storage[num]->jumpbuf, size);
-        progress += size;
+    for (size_t i = 0; i < count; i += jbuf_size) {
+        size_t lba_count = (count - i < jbuf_size ? count - i : jbuf_size) / lba_size;
+
+        nvme_rw_lba(this_nvme->dev, nvme_devices.storage[num]->jumpbuf,
+                    loc + i / lba_size, lba_count, 0);
+
+        memcpy(buf + i, nvme_devices.storage[num]->jumpbuf, lba_count * lba_size);
     }
 }
 
@@ -641,16 +641,14 @@ ssize_t nvme_write(struct resource *this, void *buf, off_t loc, size_t count) {
     }
 
     size_t jbuf_size = nvme_devices.storage[num]->max_lba * lba_size;
-    size_t jbuf_size_lbas = nvme_devices.storage[num]->max_lba;
-    size_t num_iters = (count / jbuf_size) + ((count % jbuf_size) != 0);
 
-    size_t progress = 0;
-    while (progress < count) {
-        void *lloc = (void*)((uintptr_t)buf + progress);
-        size_t size = ((count - progress) > jbuf_size) ? jbuf_size : (count - progress);
-        memcpy(nvme_devices.storage[num]->jumpbuf, lloc, size);
-        nvme_rw_lba(this_nvme->dev, nvme_devices.storage[num]->jumpbuf, progress / lba_size, size / lba_size, 1);
-        progress += size;
+    for (size_t i = 0; i < count; i += jbuf_size) {
+        size_t lba_count = (count - i < jbuf_size ? count - i : jbuf_size) / lba_size;
+
+        nvme_rw_lba(this_nvme->dev, nvme_devices.storage[num]->jumpbuf,
+                    loc + i / lba_size, lba_count, 1);
+
+        memcpy(buf + i, nvme_devices.storage[num]->jumpbuf, lba_count * lba_size);
     }
 }
 

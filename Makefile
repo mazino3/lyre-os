@@ -2,6 +2,7 @@
 
 all:
 	MAKEFLAGS="$(MAKEFLAGS)" ./bootstrap.sh build/
+	cp lyre.hdd lyre.hdd.1
 
 distro:
 	mkdir -p build
@@ -22,6 +23,8 @@ QEMU_FLAGS :=       \
     -d cpu_reset    \
     -smp 1          \
     -hda lyre.hdd   \
+    -drive file=lyre.hdd.1,if=none,format=raw,id=NVME1 \
+    -device nvme,drive=NVME1,serial=nvme-1 \
     -enable-kvm -cpu host,+invtsc
 
 ovmf:

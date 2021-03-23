@@ -214,21 +214,6 @@ packages:
         environ:
           DESTDIR: '@THIS_COLLECT_DIR@'
 
-  - name: hello
-    source:
-      subdir: 'ports'
-      url: 'https://github.com/lowlevelmemes/hello/archive/1.2a.tar.gz'
-      format: 'tar.gz'
-      extract_path: 'hello-1.2a'
-      patch-path-strip: 3
-    tools_required:
-      - host-gcc
-    build:
-      - args: ['make', 'CC=x86_64-lyre-gcc', '-j@PARALLELISM@']
-        workdir: '@THIS_SOURCE_DIR@'
-      - args: ['make', 'PREFIX=/usr', 'DESTDIR=@THIS_COLLECT_DIR@', 'install']
-        workdir: '@THIS_SOURCE_DIR@'
-
   - name: eudev
     source:
       subdir: 'ports'

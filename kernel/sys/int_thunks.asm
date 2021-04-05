@@ -161,7 +161,8 @@ syscall_entry:
 
     mov rdi, rsp
 
-    call [syscall_table + rax * 8]
+    lea rbx, [rel syscall_table]
+    call [rbx + rax * 8]
 
     pop rax
     pop rbx

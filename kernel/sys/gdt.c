@@ -96,18 +96,20 @@ void gdt_init() {
 void gdt_reload(void) {
     asm volatile (
         "lgdt %0\n\t"
-        "push %1\n\t"
-        "push OFFSET 1f\n\t"
+        "push 0x08\n\t"
+        "lea rax, [rip + OFFSET 1f]\n\t"
+        "push rax\n\t"
         "lretq\n\t"
         "1:\n\t"
-        "mov ds, %2\n\t"
-        "mov es, %2\n\t"
-        "mov fs, %2\n\t"
-        "mov gs, %2\n\t"
-        "mov ss, %2\n\t"
+        "mov eax, 0x10\n\t"
+        "mov ds, ax\n\t"
+        "mov es, ax\n\t"
+        "mov fs, ax\n\t"
+        "mov gs, ax\n\t"
+        "mov ss, ax\n\t"
         :
-        : "m"(gdt_pointer), "rmi"((uint64_t)0x08), "rm"((uint64_t)0x10)
-        : "memory"
+        : "m"(gdt_pointer)
+        : "rax", "memory"
     );
 }
 

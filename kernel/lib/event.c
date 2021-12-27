@@ -3,116 +3,121 @@
 #include <lib/event.h>
 #include <lib/lock.h>
 #include <sched/sched.h>
+#include <sys/cpu.h>
 
-static struct event_listener *get_listener(struct event *event) {
-    for (size_t i = 0; i < event->listener_count; i++) {
-        if (LOCK_ACQUIRE(event->listeners[i].lock))
-            return &event->listeners[i];
+static ssize_t check_for_pending(struct event **events, size_t count) {
+    for (size_t i = 0; i < count; i++) {
+        if (events[i]->pending > 0) {
+            events[i]->pending--;
+            return i;
+        }
     }
-    return NULL;
+
+    return -1;
 }
 
-bool events_await(struct event **events, ssize_t *which, size_t event_count,
-                  bool no_block) {
+static void attach_listeners(struct event **events, size_t count, struct thread *thread) {
+    for (size_t i = 0; i < count; i++) {
+        struct event *event = events[i];
+
+        if (event->listeners_i == EVENT_MAX_LISTENERS) {
+            print("PANIC event listeners exhausted\n");
+            for (;;);
+        }
+
+        struct event_listener *listener = &event->listeners[event->listeners_i];
+
+        listener->thread = thread;
+        listener->which = i;
+
+        event->listeners_i++;
+    }
+}
+
+static void lock_events(struct event **events, size_t count) {
+    for (size_t i = 0; i < count; i++) {
+        SPINLOCK_ACQUIRE(events[i]->lock);
+    }
+}
+
+static void unlock_events(struct event **events, size_t count) {
+    for (size_t i = 0; i < count; i++) {
+        LOCK_RELEASE(events[i]->lock);
+    }
+}
+
+bool events_await(struct event **events, ssize_t *which, size_t count, bool no_block) {
+    bool block = !no_block;
+
     struct thread *thread = this_cpu->current_thread;
 
-    LOCK_RELEASE(thread->event_block_dequeue);
-    LOCK_RELEASE(thread->event_occurred);
+    asm ("cli");
 
-    struct event_listener *listeners[event_count];
-    size_t listeners_armed = 0;
+    lock_events(events, count);
 
-    for (size_t i = 0; i < event_count; i++) {
-        if (LOCKED_READ(events[i]->pending) > 0
-         && LOCK_ACQUIRE(thread->event_occurred)) {
-            LOCKED_DEC(events[i]->pending);
-            *which = i;
-            goto unarm_listeners;
-        }
-
-        if (!LOCK_ACQUIRE(thread->event_occurred)) {
-            goto unarm_listeners;
-        }
-        LOCK_RELEASE(thread->event_occurred);
-
-        struct event_listener *listener = get_listener(events[i]);
-        if (listener == NULL)
-            return false;
-        listener->thread = this_cpu->current_thread;
-        listener->which  = which;
-        listener->index  = i;
-        LOCK_ACQUIRE(listener->ready);
-
-        listeners[i] = listener;
-        listeners_armed = i++;
+    ssize_t i = check_for_pending(events, count);
+    if (i >= 0) {
+        unlock_events(events, count);
+        *which = i;
+        return true;
     }
 
-    if (no_block && LOCK_ACQUIRE(thread->event_occurred)) {
-        *which = -1;
-        goto unarm_listeners;
+    if (block == false) {
+        unlock_events(events, count);
+        return false;
     }
 
-    if (LOCK_ACQUIRE(thread->event_block_dequeue))
-        sched_dequeue_and_yield();
+    attach_listeners(events, count, thread);
 
-unarm_listeners:
-    for (size_t i = 0; i < listeners_armed; i++) {
-        LOCK_RELEASE(listeners[i]->ready);
-        LOCK_RELEASE(listeners[i]->lock);
-    }
+    sched_dequeue(thread);
+
+    unlock_events(events, count);
+
+    sched_yield();
+
+    *which = thread->which_event;
 
     return true;
 }
 
-void event_trigger(struct event *event) {
-    if (LOCKED_READ(event->pending) > 0) {
-        LOCKED_INC(event->pending);
-        return;
+size_t event_trigger(struct event *event) {
+    size_t ret;
+
+    bool ints = interrupt_state();
+
+    asm ("cli");
+
+    SPINLOCK_ACQUIRE(event->lock);
+
+    if (event->listeners_i == 0) {
+        event->pending++;
+        ret = 0;
+        goto out;
     }
 
-    bool pending = true;
+    for (size_t i = 0; i < event->listeners_i; i++) {
+        struct thread *thread = event->listeners[i].thread;
 
-    for (size_t i = 0; i < event->listener_count; i++) {
-        struct event_listener *listener = &event->listeners[i];
+        thread->which_event = event->listeners[i].which;
 
-        if (LOCK_ACQUIRE(listener->lock)) {
-            LOCK_RELEASE(listener->lock);
-            continue;
-        }
-
-        if (LOCK_ACQUIRE(listener->ready)) {
-            LOCK_RELEASE(listener->ready);
-            continue;
-        }
-
-        if (!LOCK_ACQUIRE(listener->thread->event_occurred)) {
-            continue;
-        }
-
-        pending = false;
-
-        *listener->which = listener->index;
-
-        struct thread *thread = listener->thread;
-
-        LOCK_ACQUIRE(thread->event_block_dequeue);
         sched_queue(thread);
-
-        LOCK_RELEASE(listener->lock);
-        LOCK_RELEASE(listener->ready);
     }
 
-    if (pending) {
-        LOCKED_INC(event->pending);
-    } else {
-        /*if (this_cpu->current_thread == NULL)
-            sched_yield();*/
+    ret = event->listeners_i;
+
+    event->listeners_i = 0;
+
+out:
+    LOCK_RELEASE(event->lock);
+
+    if (ints == true) {
+        asm ("sti");
     }
+
+    return ret;
 }
 
-struct event *event_create(size_t max_listeners) {
-    struct event *new = alloc(sizeof(struct event)
-                            + sizeof(struct event_listener) * max_listeners);
-    new->listener_count = max_listeners;
+struct event *event_create(void) {
+    struct event *new = alloc(sizeof(struct event));
     return new;
 }

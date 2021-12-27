@@ -29,6 +29,7 @@ struct thread {
     uintptr_t page_fault_stack;
     lock_t event_block_dequeue;
     lock_t event_occurred;
+    size_t which_event;
 };
 
 struct process {

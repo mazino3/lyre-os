@@ -65,7 +65,7 @@ void idt_init(void) {
 
     /* Register all interrupts to thunks */
     for (size_t i = 0; i < 256; i++) {
-        int_event[i] = event_create(16);
+        int_event[i] = event_create();
         idt_register_interrupt_handler(i, int_thunks[i], 0, 0x8e);
     }
 

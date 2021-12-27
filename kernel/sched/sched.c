@@ -318,7 +318,7 @@ struct process *sched_new_process(struct process *old_process, struct pagemap *p
         }
     }
 
-    new_process->event = event_create(1);
+    new_process->event = event_create();
 
     SPINLOCK_ACQUIRE(sched_lock);
 

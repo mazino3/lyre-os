@@ -40,7 +40,7 @@ void vmm_init(struct stivale2_mmap_entry *memmap, size_t memmap_entries) {
 
     vmm_switch_pagemap(kernel_pagemap);
 
-    page_fault_event = event_create(1);
+    page_fault_event = event_create();
 }
 
 void vmm_switch_pagemap(struct pagemap *pagemap) {

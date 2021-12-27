@@ -207,4 +207,16 @@ static inline void swapgs(void) {
     asm volatile ("swapgs" ::: "memory");
 }
 
+inline bool interrupt_state(void) {
+    uint64_t f;
+
+    asm volatile (
+        "pushfq\n\t"
+        "pop %0\n\t"
+        : "=rm" (f)
+    );
+
+    return (f & (1 << 9)) != 0;
+}
+
 #endif

@@ -856,7 +856,7 @@ bool console_init(uint32_t *_fb,
         tty->control_sequence = 0;
         tty->escape = 0;
         tty->tabsize = 8;
-        tty->kbd_event = event_create(16);
+        tty->kbd_event = event_create();
         tty->kbd_lock = (lock_t){0};
         tty->kbd_buf_i = 0;
         tty->big_buf_i = 0;

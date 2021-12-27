@@ -467,6 +467,8 @@ static void put_char(struct tty *tty, unsigned char c) {
 }
 
 static int tty_ioctl(struct resource *this, int request, void *argp) {
+    struct tty *tty = (void *)this;
+
     switch (request) {
         case TIOCGWINSZ: {
             struct winsize *w = argp;
@@ -474,6 +476,11 @@ static int tty_ioctl(struct resource *this, int request, void *argp) {
             w->ws_col = cols;
             w->ws_xpixel = fb_width;
             w->ws_ypixel = fb_height;
+            return 0;
+        }
+        case TCGETS: {
+            struct termios *t = argp;
+            *t = tty->termios;
             return 0;
         }
     }

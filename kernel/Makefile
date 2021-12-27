@@ -1,3 +1,5 @@
+PREFIX = /boot
+
 # Directories
 REPODIR   := $(shell realpath .)
 
@@ -34,6 +36,11 @@ OBJ       := $(CSOURCE:.c=.o) $(ASMSOURCE:.asm=.o)
 .PHONY: all run clean distclean
 
 all: ${KERNEL}
+
+.PHONY: install
+install:
+	install -d "$(DESTDIR)$(PREFIX)"
+	install -s $(KERNEL) "$(DESTDIR)$(PREFIX)/"
 
 ${KERNEL}: ${OBJ}
 	${CC} ${LDHARDFLAGS} ${OBJ} -T ${REPODIR}/linker.ld -o $@

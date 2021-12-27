@@ -1,12 +1,9 @@
-loopback_dev
 ovmf
-build-root
 build
-ports
-limine
+3rdparty
 *.o
-*.hdd
-*.hdd.1
 *.bin
 *.elf
 *gz
+*.xbstrap
+*.iso

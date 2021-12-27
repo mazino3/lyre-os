@@ -1,39 +1,55 @@
-.PHONY: all distro clean distclean run
+unexport CC
+unexport CXX
+unexport CFLAGS
+unexport CXXFLAGS
+unexport LDFLAGS
+unexport MAKEFLAGS
 
-all:
-	MAKEFLAGS="$(MAKEFLAGS)" ./bootstrap.sh build/
-	cp lyre.hdd lyre.hdd.1
+.PHONY: all
+all: lyre.iso
 
-distro:
-	mkdir -p build
-	cd build && xbstrap init .. && xbstrap install --all
+QEMUFLAGS = -M q35,smm=off -m 8G -cdrom lyre.iso -debugcon stdio
 
-clean:
-	$(MAKE) -C kernel clean
-	rm -rf lyre.hdd
+.PHONY: run-kvm
+run-kvm: lyre.iso
+	qemu-system-x86_64 -enable-kvm -cpu host $(QEMUFLAGS) -smp 4
 
-distclean: clean
-	rm -rf build ports limine mlibc* initramfs.tar.gz
-
-QEMU_FLAGS :=       \
-    $(QEMU_FLAGS)   \
-    -m 4G           \
-    -net none       \
-    -debugcon stdio \
-    -d cpu_reset    \
-    -smp 1          \
-    -hda lyre.hdd   \
-    -drive file=lyre.hdd.1,if=none,format=raw,id=NVME1 \
-    -device nvme,drive=NVME1,serial=nvme-1 \
-    -enable-kvm -cpu host,+invtsc
+.PHONY: run-hvf
+run-hvf: lyre.iso
+	qemu-system-x86_64 -accel hvf -cpu host $(QEMUFLAGS) -smp 4
 
 ovmf:
 	mkdir -p ovmf
-	cd ovmf && wget https://efi.akeo.ie/OVMF/OVMF-X64.zip && 7z x OVMF-X64.zip
+	cd ovmf && curl -o OVMF-X64.zip https://efi.akeo.ie/OVMF/OVMF-X64.zip && 7z x OVMF-X64.zip
 
-run:
-	qemu-system-x86_64 $(QEMU_FLAGS)
+.PHONY: run-uefi
+run-uefi: ovmf
+	qemu-system-x86_64 -enable-kvm -cpu host $(QEMUFLAGS) -smp 4 -bios ovmf/OVMF.fd
 
-uefi-run:
-	$(MAKE) ovmf
-	qemu-system-x86_64 -L ovmf -bios ovmf/OVMF.fd $(QEMU_FLAGS)
+.PHONY: run
+run: lyre.iso
+	qemu-system-x86_64 $(QEMUFLAGS) -no-shutdown -no-reboot -d int -smp 1
+
+.PHONY: distro
+distro:
+	mkdir -p build 3rdparty
+	cd build && [ -f bootstrap.link ] || xbstrap init ..
+	cd build && xbstrap install -u --all
+
+.PHONY: kernel
+kernel:
+	cd build && xbstrap install --rebuild kernel
+
+lyre.iso: kernel
+	cd build && xbstrap run make-iso
+	mv build/lyre.iso ./
+
+.PHONY: clean
+clean:
+	$(MAKE) -C kernel clean
+	rm -f lyre.iso
+
+.PHONY: distclean
+distclean: clean
+	rm -rf 3rdparty build ovmf
+	rm -f kernel/*.xbstrap

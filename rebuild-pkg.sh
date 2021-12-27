@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -ex
+set -e
 
 BASE_DIR="$(pwd)"
 
@@ -8,6 +8,8 @@ if [ -z "$1" ]; then
     echo "Usage: $0 <package dir> [<package name>] [--tool]"
     exit 1
 fi
+
+set -x
 
 if [ -z "$2" ]; then
     PKG_NAME="$1"
@@ -24,31 +26,50 @@ if [ "$3" = "--tool" ]; then
     IS_TOOL="-tool"
 fi
 
-[ -f ports/$1.tar.gz ] || [ -f ports/$1.tar.xz ] || (
-    cd build
-    xbstrap install$IS_TOOL -u $PKG_NAME
-)
+[ -z "$IS_TOOL" ] && rm -rf "$BASE_DIR"/build/pkg-builds/$1
+[ -z "$IS_TOOL" ] || rm -rf "$BASE_DIR"/build/tool-builds/$PKG_NAME
 
-[ -d ports/$1-workdir ] || (
-    mkdir ports/$1-workdir
-    tar -xf ports/$1.tar.* -C ports/$1-workdir --strip-components=1
-    cd ports/$1-workdir
-    [ ! -f "$BASE_DIR"/patches/$1/$1.patch ] && (
-        mkdir -p "$BASE_DIR"/patches/$1
-        touch "$BASE_DIR"/patches/$1/$1.patch
+if [ -d 3rdparty/$1 ]; then
+    ( cd 3rdparty/$1
+    [ -f "$BASE_DIR"/patches/$1/0001-Lyre-specific-changes.patch ] && (
+        git reset HEAD~1
     )
-    patch -p3 < "$BASE_DIR"/patches/$1/$1.patch
+    git checkout .
+    git clean -ffd
+    touch checkedout.xbstrap fetched.xbstrap
+    cd ../../build
+    xbstrap patch $1 )
+else
+    ( cd build
+    xbstrap fetch $1
+    xbstrap checkout $1
+    xbstrap patch $1 )
+fi
+
+[ -d 3rdparty/$1-workdir ] || (
+    cp -r "$BASE_DIR"/3rdparty/$1 "$BASE_DIR"/3rdparty/$1-workdir
+    rm -f "$BASE_DIR"/3rdparty/$1-workdir/*.xbstrap
 )
 
-[ -d ports/$1-orig ] || (
-    mkdir ports/$1-orig
-    tar -xf ports/$1.tar.* -C ports/$1-orig --strip-components=1
+cd 3rdparty/$1-workdir
+[ -f "$BASE_DIR"/patches/$1/0001-Lyre-specific-changes.patch ] && (
+    git reset HEAD~1
+    ( cd ../$1 && git reset HEAD~1 )
 )
+( cd ../$1 && git checkout . && git clean -ffd && touch checkedout.xbstrap fetched.xbstrap )
+git add .
+git commit --allow-empty -m "Lyre specific changes"
+git format-patch -1
+if [ -s 0001-Lyre-specific-changes.patch ]; then
+    mkdir -p "$BASE_DIR"/patches/$1
+    mv 0001-Lyre-specific-changes.patch "$BASE_DIR"/patches/$1/
+else
+    rm 0001-Lyre-specific-changes.patch
+    git reset HEAD~1
+fi
 
-git diff --no-index ports/$1-orig ports/$1-workdir > patches/$1/$1.patch || true
+cd "$BASE_DIR"/build
+xbstrap patch $1
+xbstrap regenerate $1
 
-[ "$1" = "mlibc" ] && [ -d ports/mlibc ] && mv ports/mlibc/subprojects ./mlibc-subprojects
-rm -rf ports/$1
-[ "$1" = "mlibc" ] && mkdir ports/mlibc && mv ./mlibc-subprojects ports/mlibc/subprojects || true
-cd build
 xbstrap install$IS_TOOL -u $PKG_NAME

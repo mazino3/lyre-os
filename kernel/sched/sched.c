@@ -12,7 +12,7 @@
 #include <lib/errno.h>
 #include <fs/vfs.h>
 
-#define THREAD_STACK_SIZE ((size_t)32768)
+#define THREAD_STACK_SIZE ((size_t)8 * 1024 * 1024)
 #define THREAD_STACK_TOP  ((uintptr_t)0x70000000000)
 
 static lock_t sched_lock = {0};

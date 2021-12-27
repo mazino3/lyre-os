@@ -1,17 +1,84 @@
-diff --git a/ports/mlibc-orig/meson.build b/ports/mlibc-workdir/meson.build
-index b781895..8ebcb71 100644
---- a/ports/mlibc-orig/meson.build
-+++ b/ports/mlibc-workdir/meson.build
-@@ -44,7 +44,7 @@ if not headers_only
+From bfec1c7bcd234ccb9832c926e118b70a918ec4ea Mon Sep 17 00:00:00 2001
+From: mintsuki <mintsuki@protonmail.com>
+Date: Mon, 27 Dec 2021 13:44:01 +0100
+Subject: [PATCH] Lyre specific changes
+
+---
+ meson.build                                 |   6 +-
+ sysdeps/lyre/crt-x86_64/crt0.S              |   7 +
+ sysdeps/lyre/generic/entry.cpp              |  34 ++
+ sysdeps/lyre/generic/generic.cpp            | 462 ++++++++++++++++++++
+ sysdeps/lyre/include/abi-bits/abi.h         |   1 +
+ sysdeps/lyre/include/abi-bits/auxv.h        |   1 +
+ sysdeps/lyre/include/abi-bits/blkcnt_t.h    |   1 +
+ sysdeps/lyre/include/abi-bits/blksize_t.h   |   1 +
+ sysdeps/lyre/include/abi-bits/dev_t.h       |   1 +
+ sysdeps/lyre/include/abi-bits/errno.h       |   1 +
+ sysdeps/lyre/include/abi-bits/fcntl.h       |   1 +
+ sysdeps/lyre/include/abi-bits/gid_t.h       |   1 +
+ sysdeps/lyre/include/abi-bits/in.h          |   1 +
+ sysdeps/lyre/include/abi-bits/ino_t.h       |   1 +
+ sysdeps/lyre/include/abi-bits/limits.h      |   1 +
+ sysdeps/lyre/include/abi-bits/mode_t.h      |   1 +
+ sysdeps/lyre/include/abi-bits/nlink_t.h     |   1 +
+ sysdeps/lyre/include/abi-bits/pid_t.h       |   1 +
+ sysdeps/lyre/include/abi-bits/reboot.h      |   1 +
+ sysdeps/lyre/include/abi-bits/resource.h    |   1 +
+ sysdeps/lyre/include/abi-bits/seek-whence.h |   1 +
+ sysdeps/lyre/include/abi-bits/signal.h      |   1 +
+ sysdeps/lyre/include/abi-bits/socket.h      |   1 +
+ sysdeps/lyre/include/abi-bits/stat.h        |   1 +
+ sysdeps/lyre/include/abi-bits/termios.h     |   1 +
+ sysdeps/lyre/include/abi-bits/time.h        |   1 +
+ sysdeps/lyre/include/abi-bits/uid_t.h       |   1 +
+ sysdeps/lyre/include/abi-bits/vm-flags.h    |   1 +
+ sysdeps/lyre/include/abi-bits/wait.h        |   1 +
+ sysdeps/lyre/meson.build                    |  52 +++
+ 30 files changed, 585 insertions(+), 1 deletion(-)
+ create mode 100644 sysdeps/lyre/crt-x86_64/crt0.S
+ create mode 100644 sysdeps/lyre/generic/entry.cpp
+ create mode 100644 sysdeps/lyre/generic/generic.cpp
+ create mode 120000 sysdeps/lyre/include/abi-bits/abi.h
+ create mode 120000 sysdeps/lyre/include/abi-bits/auxv.h
+ create mode 120000 sysdeps/lyre/include/abi-bits/blkcnt_t.h
+ create mode 120000 sysdeps/lyre/include/abi-bits/blksize_t.h
+ create mode 120000 sysdeps/lyre/include/abi-bits/dev_t.h
+ create mode 120000 sysdeps/lyre/include/abi-bits/errno.h
+ create mode 120000 sysdeps/lyre/include/abi-bits/fcntl.h
+ create mode 120000 sysdeps/lyre/include/abi-bits/gid_t.h
+ create mode 120000 sysdeps/lyre/include/abi-bits/in.h
+ create mode 120000 sysdeps/lyre/include/abi-bits/ino_t.h
+ create mode 120000 sysdeps/lyre/include/abi-bits/limits.h
+ create mode 120000 sysdeps/lyre/include/abi-bits/mode_t.h
+ create mode 120000 sysdeps/lyre/include/abi-bits/nlink_t.h
+ create mode 120000 sysdeps/lyre/include/abi-bits/pid_t.h
+ create mode 120000 sysdeps/lyre/include/abi-bits/reboot.h
+ create mode 120000 sysdeps/lyre/include/abi-bits/resource.h
+ create mode 120000 sysdeps/lyre/include/abi-bits/seek-whence.h
+ create mode 120000 sysdeps/lyre/include/abi-bits/signal.h
+ create mode 120000 sysdeps/lyre/include/abi-bits/socket.h
+ create mode 120000 sysdeps/lyre/include/abi-bits/stat.h
+ create mode 120000 sysdeps/lyre/include/abi-bits/termios.h
+ create mode 120000 sysdeps/lyre/include/abi-bits/time.h
+ create mode 120000 sysdeps/lyre/include/abi-bits/uid_t.h
+ create mode 120000 sysdeps/lyre/include/abi-bits/vm-flags.h
+ create mode 120000 sysdeps/lyre/include/abi-bits/wait.h
+ create mode 100644 sysdeps/lyre/meson.build
+
+diff --git a/meson.build b/meson.build
+index 4027c99..c62e9aa 100644
+--- a/meson.build
++++ b/meson.build
+@@ -48,7 +48,7 @@ if not headers_only
  	c_compiler = meson.get_compiler('c')
  
  	add_project_arguments('-nostdinc', '-fno-builtin', language: ['c', 'cpp'])
--	add_project_arguments('-std=c++17', language: 'cpp')
-+	add_project_arguments('-std=gnu++17', language: 'cpp')
+-	add_project_arguments('-std=c++20', language: 'cpp')
++	add_project_arguments('-std=gnu++20', language: 'cpp')
  	add_project_arguments('-fno-rtti', '-fno-exceptions', language: 'cpp')
+ 	add_project_arguments('-Wall', '-Wextra', language: ['c', 'cpp'])
  	add_project_link_arguments('-nostdlib', language: ['c', 'cpp'])
- 
-@@ -89,6 +89,10 @@ elif host_machine.system() == 'qword'
+@@ -110,6 +110,10 @@ elif host_machine.system() == 'qword'
  	rtdl_include_dirs += include_directories('sysdeps/qword/include')
  	libc_include_dirs += include_directories('sysdeps/qword/include')
  	subdir('sysdeps/qword')
@@ -22,11 +89,11 @@ index b781895..8ebcb71 100644
  elif host_machine.system() == 'sigma'
  	#disable_linux_option = true
  	rtdl_include_dirs += include_directories('sysdeps/sigma/include')
-diff --git a/ports/mlibc-workdir/sysdeps/lyre/crt-x86_64/crt0.S b/ports/mlibc-workdir/sysdeps/lyre/crt-x86_64/crt0.S
+diff --git a/sysdeps/lyre/crt-x86_64/crt0.S b/sysdeps/lyre/crt-x86_64/crt0.S
 new file mode 100644
 index 0000000..0a0a4a0
 --- /dev/null
-+++ b/ports/mlibc-workdir/sysdeps/lyre/crt-x86_64/crt0.S
++++ b/sysdeps/lyre/crt-x86_64/crt0.S
 @@ -0,0 +1,7 @@
 +
 +.section .text
@@ -35,11 +102,11 @@ index 0000000..0a0a4a0
 +    mov $main, %rdi
 +    call __mlibc_entry
 +
-diff --git a/ports/mlibc-workdir/sysdeps/lyre/generic/entry.cpp b/ports/mlibc-workdir/sysdeps/lyre/generic/entry.cpp
+diff --git a/sysdeps/lyre/generic/entry.cpp b/sysdeps/lyre/generic/entry.cpp
 new file mode 100644
 index 0000000..ee7a794
 --- /dev/null
-+++ b/ports/mlibc-workdir/sysdeps/lyre/generic/entry.cpp
++++ b/sysdeps/lyre/generic/entry.cpp
 @@ -0,0 +1,34 @@
 +
 +#include <stdint.h>
@@ -75,12 +142,12 @@ index 0000000..ee7a794
 +	exit(result);
 +}
 +
-diff --git a/ports/mlibc-workdir/sysdeps/lyre/generic/generic.cpp b/ports/mlibc-workdir/sysdeps/lyre/generic/generic.cpp
+diff --git a/sysdeps/lyre/generic/generic.cpp b/sysdeps/lyre/generic/generic.cpp
 new file mode 100644
-index 0000000..923fd07
+index 0000000..456dee0
 --- /dev/null
-+++ b/ports/mlibc-workdir/sysdeps/lyre/generic/generic.cpp
-@@ -0,0 +1,439 @@
++++ b/sysdeps/lyre/generic/generic.cpp
+@@ -0,0 +1,462 @@
 +#include <bits/ensure.h>
 +#include <mlibc/debug.hpp>
 +#include <mlibc/all-sysdeps.hpp>
@@ -88,6 +155,8 @@ index 0000000..923fd07
 +#include <dirent.h>
 +#include <fcntl.h>
 +#include <limits.h>
++#include <asm/ioctls.h>
++#include <stdlib.h>
 +
 +#define STUB_ONLY { __ensure(!"STUB_ONLY function was called"); __builtin_unreachable(); }
 +
@@ -189,7 +258,7 @@ index 0000000..923fd07
 +    return 0;
 +}
 +
-+int sys_futex_wait(int *pointer, int expected) STUB_ONLY
++int sys_futex_wait(int *pointer, int expected, const struct timespec *time) STUB_ONLY
 +int sys_futex_wake(int *pointer) STUB_ONLY
 +
 +int sys_ioctl(int fd, unsigned long request, void *arg, int *result) {
@@ -340,6 +409,17 @@ index 0000000..923fd07
 +}
 +
 +gid_t sys_getgid() {
++    mlibc::infoLogger() << "mlibc: " << __func__ << " is a stub!\n" << frg::endlog;
++    return 0;
++}
++
++pid_t sys_getpgid(pid_t pid, pid_t *pgid) {
++    mlibc::infoLogger() << "mlibc: " << __func__ << " is a stub!\n" << frg::endlog;
++    *pgid = 0;
++    return 0;
++}
++
++int sys_setpgid(pid_t pid, pid_t pgid) {
 +    mlibc::infoLogger() << "mlibc: " << __func__ << " is a stub!\n" << frg::endlog;
 +    return 0;
 +}
@@ -519,197 +599,223 @@ index 0000000..923fd07
 +    return 0;
 +}
 +
++int sys_tcgetattr(int fd, struct termios *attr) {
++    int ret;
++
++    if (int r = sys_ioctl(fd, TCGETS, attr, &ret) != 0) {
++        return r;
++    }
++
++    return 0;
++}
++
 +} // namespace mlibc
-diff --git a/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/abi.h b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/abi.h
+diff --git a/sysdeps/lyre/include/abi-bits/abi.h b/sysdeps/lyre/include/abi-bits/abi.h
 new file mode 120000
 index 0000000..c945860
 --- /dev/null
-+++ b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/abi.h
++++ b/sysdeps/lyre/include/abi-bits/abi.h
 @@ -0,0 +1 @@
 +../../../../abis/mlibc/abi.h
 \ No newline at end of file
-diff --git a/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/auxv.h b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/auxv.h
+diff --git a/sysdeps/lyre/include/abi-bits/auxv.h b/sysdeps/lyre/include/abi-bits/auxv.h
 new file mode 120000
 index 0000000..b7bb109
 --- /dev/null
-+++ b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/auxv.h
++++ b/sysdeps/lyre/include/abi-bits/auxv.h
 @@ -0,0 +1 @@
 +../../../../abis/qword/auxv.h
 \ No newline at end of file
-diff --git a/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/blkcnt_t.h b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/blkcnt_t.h
+diff --git a/sysdeps/lyre/include/abi-bits/blkcnt_t.h b/sysdeps/lyre/include/abi-bits/blkcnt_t.h
 new file mode 120000
 index 0000000..e9d9f1b
 --- /dev/null
-+++ b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/blkcnt_t.h
++++ b/sysdeps/lyre/include/abi-bits/blkcnt_t.h
 @@ -0,0 +1 @@
 +../../../../abis/mlibc/blkcnt_t.h
 \ No newline at end of file
-diff --git a/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/blksize_t.h b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/blksize_t.h
+diff --git a/sysdeps/lyre/include/abi-bits/blksize_t.h b/sysdeps/lyre/include/abi-bits/blksize_t.h
 new file mode 120000
 index 0000000..c6dfb6e
 --- /dev/null
-+++ b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/blksize_t.h
++++ b/sysdeps/lyre/include/abi-bits/blksize_t.h
 @@ -0,0 +1 @@
 +../../../../abis/mlibc/blksize_t.h
 \ No newline at end of file
-diff --git a/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/dev_t.h b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/dev_t.h
+diff --git a/sysdeps/lyre/include/abi-bits/dev_t.h b/sysdeps/lyre/include/abi-bits/dev_t.h
 new file mode 120000
 index 0000000..0c1143b
 --- /dev/null
-+++ b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/dev_t.h
++++ b/sysdeps/lyre/include/abi-bits/dev_t.h
 @@ -0,0 +1 @@
 +../../../../abis/mlibc/dev_t.h
 \ No newline at end of file
-diff --git a/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/errno.h b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/errno.h
+diff --git a/sysdeps/lyre/include/abi-bits/errno.h b/sysdeps/lyre/include/abi-bits/errno.h
 new file mode 120000
 index 0000000..589859f
 --- /dev/null
-+++ b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/errno.h
++++ b/sysdeps/lyre/include/abi-bits/errno.h
 @@ -0,0 +1 @@
 +../../../../abis/mlibc/errno.h
 \ No newline at end of file
-diff --git a/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/fcntl.h b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/fcntl.h
+diff --git a/sysdeps/lyre/include/abi-bits/fcntl.h b/sysdeps/lyre/include/abi-bits/fcntl.h
 new file mode 120000
 index 0000000..ea5323a
 --- /dev/null
-+++ b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/fcntl.h
++++ b/sysdeps/lyre/include/abi-bits/fcntl.h
 @@ -0,0 +1 @@
 +../../../../abis/mlibc/fcntl.h
 \ No newline at end of file
-diff --git a/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/gid_t.h b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/gid_t.h
+diff --git a/sysdeps/lyre/include/abi-bits/gid_t.h b/sysdeps/lyre/include/abi-bits/gid_t.h
 new file mode 120000
 index 0000000..6a77218
 --- /dev/null
-+++ b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/gid_t.h
++++ b/sysdeps/lyre/include/abi-bits/gid_t.h
 @@ -0,0 +1 @@
 +../../../../abis/mlibc/gid_t.h
 \ No newline at end of file
-diff --git a/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/in.h b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/in.h
+diff --git a/sysdeps/lyre/include/abi-bits/in.h b/sysdeps/lyre/include/abi-bits/in.h
 new file mode 120000
 index 0000000..b58c683
 --- /dev/null
-+++ b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/in.h
++++ b/sysdeps/lyre/include/abi-bits/in.h
 @@ -0,0 +1 @@
 +../../../../abis/mlibc/in.h
 \ No newline at end of file
-diff --git a/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/ino_t.h b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/ino_t.h
+diff --git a/sysdeps/lyre/include/abi-bits/ino_t.h b/sysdeps/lyre/include/abi-bits/ino_t.h
 new file mode 120000
 index 0000000..10d644e
 --- /dev/null
-+++ b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/ino_t.h
++++ b/sysdeps/lyre/include/abi-bits/ino_t.h
 @@ -0,0 +1 @@
 +../../../../abis/mlibc/ino_t.h
 \ No newline at end of file
-diff --git a/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/mode_t.h b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/mode_t.h
+diff --git a/sysdeps/lyre/include/abi-bits/limits.h b/sysdeps/lyre/include/abi-bits/limits.h
+new file mode 120000
+index 0000000..1aa5894
+--- /dev/null
++++ b/sysdeps/lyre/include/abi-bits/limits.h
+@@ -0,0 +1 @@
++../../../../abis/mlibc/limits.h
+\ No newline at end of file
+diff --git a/sysdeps/lyre/include/abi-bits/mode_t.h b/sysdeps/lyre/include/abi-bits/mode_t.h
 new file mode 120000
 index 0000000..29d7733
 --- /dev/null
-+++ b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/mode_t.h
++++ b/sysdeps/lyre/include/abi-bits/mode_t.h
 @@ -0,0 +1 @@
 +../../../../abis/mlibc/mode_t.h
 \ No newline at end of file
-diff --git a/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/nlink_t.h b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/nlink_t.h
+diff --git a/sysdeps/lyre/include/abi-bits/nlink_t.h b/sysdeps/lyre/include/abi-bits/nlink_t.h
 new file mode 120000
 index 0000000..7618c27
 --- /dev/null
-+++ b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/nlink_t.h
++++ b/sysdeps/lyre/include/abi-bits/nlink_t.h
 @@ -0,0 +1 @@
 +../../../../abis/mlibc/nlink_t.h
 \ No newline at end of file
-diff --git a/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/pid_t.h b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/pid_t.h
+diff --git a/sysdeps/lyre/include/abi-bits/pid_t.h b/sysdeps/lyre/include/abi-bits/pid_t.h
 new file mode 120000
 index 0000000..3fd26a7
 --- /dev/null
-+++ b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/pid_t.h
++++ b/sysdeps/lyre/include/abi-bits/pid_t.h
 @@ -0,0 +1 @@
 +../../../../abis/mlibc/pid_t.h
 \ No newline at end of file
-diff --git a/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/reboot.h b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/reboot.h
+diff --git a/sysdeps/lyre/include/abi-bits/reboot.h b/sysdeps/lyre/include/abi-bits/reboot.h
 new file mode 120000
 index 0000000..ecc3ddb
 --- /dev/null
-+++ b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/reboot.h
++++ b/sysdeps/lyre/include/abi-bits/reboot.h
 @@ -0,0 +1 @@
 +../../../../abis/linux/x86_64/reboot.h
 \ No newline at end of file
-diff --git a/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/resource.h b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/resource.h
+diff --git a/sysdeps/lyre/include/abi-bits/resource.h b/sysdeps/lyre/include/abi-bits/resource.h
 new file mode 120000
 index 0000000..3e59c75
 --- /dev/null
-+++ b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/resource.h
++++ b/sysdeps/lyre/include/abi-bits/resource.h
 @@ -0,0 +1 @@
 +../../../../abis/mlibc/resource.h
 \ No newline at end of file
-diff --git a/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/seek-whence.h b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/seek-whence.h
+diff --git a/sysdeps/lyre/include/abi-bits/seek-whence.h b/sysdeps/lyre/include/abi-bits/seek-whence.h
 new file mode 120000
 index 0000000..3bd41ef
 --- /dev/null
-+++ b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/seek-whence.h
++++ b/sysdeps/lyre/include/abi-bits/seek-whence.h
 @@ -0,0 +1 @@
 +../../../../abis/mlibc/seek-whence.h
 \ No newline at end of file
-diff --git a/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/signal.h b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/signal.h
+diff --git a/sysdeps/lyre/include/abi-bits/signal.h b/sysdeps/lyre/include/abi-bits/signal.h
 new file mode 120000
 index 0000000..b20e511
 --- /dev/null
-+++ b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/signal.h
++++ b/sysdeps/lyre/include/abi-bits/signal.h
 @@ -0,0 +1 @@
 +../../../../abis/mlibc/signal.h
 \ No newline at end of file
-diff --git a/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/socket.h b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/socket.h
+diff --git a/sysdeps/lyre/include/abi-bits/socket.h b/sysdeps/lyre/include/abi-bits/socket.h
 new file mode 120000
 index 0000000..0e1d6be
 --- /dev/null
-+++ b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/socket.h
++++ b/sysdeps/lyre/include/abi-bits/socket.h
 @@ -0,0 +1 @@
 +../../../../abis/mlibc/socket.h
 \ No newline at end of file
-diff --git a/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/stat.h b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/stat.h
+diff --git a/sysdeps/lyre/include/abi-bits/stat.h b/sysdeps/lyre/include/abi-bits/stat.h
 new file mode 120000
 index 0000000..82642c3
 --- /dev/null
-+++ b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/stat.h
++++ b/sysdeps/lyre/include/abi-bits/stat.h
 @@ -0,0 +1 @@
 +../../../../abis/mlibc/stat.h
 \ No newline at end of file
-diff --git a/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/termios.h b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/termios.h
+diff --git a/sysdeps/lyre/include/abi-bits/termios.h b/sysdeps/lyre/include/abi-bits/termios.h
 new file mode 120000
 index 0000000..cfcfe76
 --- /dev/null
-+++ b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/termios.h
++++ b/sysdeps/lyre/include/abi-bits/termios.h
 @@ -0,0 +1 @@
 +../../../../abis/mlibc/termios.h
 \ No newline at end of file
-diff --git a/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/time.h b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/time.h
+diff --git a/sysdeps/lyre/include/abi-bits/time.h b/sysdeps/lyre/include/abi-bits/time.h
 new file mode 120000
 index 0000000..97f3d52
 --- /dev/null
-+++ b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/time.h
++++ b/sysdeps/lyre/include/abi-bits/time.h
 @@ -0,0 +1 @@
 +../../../../abis/mlibc/time.h
 \ No newline at end of file
-diff --git a/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/uid_t.h b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/uid_t.h
+diff --git a/sysdeps/lyre/include/abi-bits/uid_t.h b/sysdeps/lyre/include/abi-bits/uid_t.h
 new file mode 120000
 index 0000000..1113eba
 --- /dev/null
-+++ b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/uid_t.h
++++ b/sysdeps/lyre/include/abi-bits/uid_t.h
 @@ -0,0 +1 @@
 +../../../../abis/mlibc/uid_t.h
 \ No newline at end of file
-diff --git a/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/vm-flags.h b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/vm-flags.h
+diff --git a/sysdeps/lyre/include/abi-bits/vm-flags.h b/sysdeps/lyre/include/abi-bits/vm-flags.h
 new file mode 120000
 index 0000000..f1a985e
 --- /dev/null
-+++ b/ports/mlibc-workdir/sysdeps/lyre/include/abi-bits/vm-flags.h
++++ b/sysdeps/lyre/include/abi-bits/vm-flags.h
 @@ -0,0 +1 @@
 +../../../../abis/mlibc/vm-flags.h
 \ No newline at end of file
-diff --git a/ports/mlibc-workdir/sysdeps/lyre/meson.build b/ports/mlibc-workdir/sysdeps/lyre/meson.build
-new file mode 100644
-index 0000000..0169278
+diff --git a/sysdeps/lyre/include/abi-bits/wait.h b/sysdeps/lyre/include/abi-bits/wait.h
+new file mode 120000
+index 0000000..6d911c7
 --- /dev/null
-+++ b/ports/mlibc-workdir/sysdeps/lyre/meson.build
-@@ -0,0 +1,49 @@
++++ b/sysdeps/lyre/include/abi-bits/wait.h
+@@ -0,0 +1 @@
++../../../../abis/mlibc/wait.h
+\ No newline at end of file
+diff --git a/sysdeps/lyre/meson.build b/sysdeps/lyre/meson.build
+new file mode 100644
+index 0000000..b9e4372
+--- /dev/null
++++ b/sysdeps/lyre/meson.build
+@@ -0,0 +1,52 @@
 +
 +rtdl_sources += files(
 +	'generic/generic.cpp'
@@ -729,6 +835,7 @@ index 0000000..0169278
 +		'include/abi-bits/errno.h',
 +		'include/abi-bits/fcntl.h',
 +		'include/abi-bits/in.h',
++		'include/abi-bits/reboot.h',
 +		'include/abi-bits/resource.h',
 +		'include/abi-bits/stat.h',
 +		'include/abi-bits/signal.h',
@@ -744,6 +851,8 @@ index 0000000..0169278
 +		'include/abi-bits/nlink_t.h',
 +		'include/abi-bits/pid_t.h',
 +		'include/abi-bits/uid_t.h',
++		'include/abi-bits/wait.h',
++		'include/abi-bits/limits.h',
 +		subdir: 'abi-bits'
 +	)
 +endif
@@ -759,3 +868,6 @@ index 0000000..0169278
 +	)
 +endif
 +
+-- 
+2.34.1
+

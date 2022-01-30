@@ -15,28 +15,6 @@ Subject: [PATCH] Lyre specific changes
  8 files changed, 81 insertions(+), 2 deletions(-)
  create mode 100644 gcc/config/lyre.h
 
-diff --git a/config.sub b/config.sub
-index 63c1f1c8b..4a4311cfb 100755
---- a/config.sub
-+++ b/config.sub
-@@ -134,7 +134,7 @@ case $1 in
- 			nto-qnx* | linux-* | uclinux-uclibc* \
- 			| uclinux-gnu* | kfreebsd*-gnu* | knetbsd*-gnu* | netbsd*-gnu* \
- 			| netbsd*-eabi* | kopensolaris*-gnu* | cloudabi*-eabi* \
--			| storm-chaos* | os2-emx* | rtmk-nova*)
-+			| storm-chaos* | os2-emx* | rtmk-nova* | lyre*)
- 				basic_machine=$field1
- 				basic_os=$maybe_os
- 				;;
-@@ -1700,7 +1700,7 @@ case $os in
- 	     | hpux* | unos* | osf* | luna* | dgux* | auroraux* | solaris* \
- 	     | sym* |  plan9* | psp* | sim* | xray* | os68k* | v88r* \
- 	     | hiux* | abug | nacl* | netware* | windows* \
--	     | os9* | macos* | osx* | ios* \
-+	     | os9* | macos* | osx* | ios* | lyre* \
- 	     | mpw* | magic* | mmixware* | mon960* | lnews* \
- 	     | amigaos* | amigados* | msdos* | newsos* | unicos* | aof* \
- 	     | aos* | aros* | cloudabi* | sortix* | twizzler* \
 diff --git a/fixincludes/mkfixinc.sh b/fixincludes/mkfixinc.sh
 index df90720b7..da6408af2 100755
 --- a/fixincludes/mkfixinc.sh

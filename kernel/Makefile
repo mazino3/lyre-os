@@ -1,55 +1,69 @@
-PREFIX = /boot
-
-# Directories
-REPODIR   := $(shell realpath .)
+PREFIX ?= /boot
 
 # Outputs
-KERNEL    := ${REPODIR}/lyre.elf
-IMAGE     := ${REPODIR}/lyre.hdd
+override KERNEL := lyre.elf
 
 # Compilers, several programs and their flags.
-CC   = gcc
-AS   = nasm
+ifeq ($(origin CC), default)
+CC := gcc
+endif
+ifeq ($(origin AS), default)
+AS := nasm
+endif
 
-CFLAGS    = -Wall -Wextra -g -O2
-ASFLAGS   = -F dwarf -g
-LDFLAGS   = -O2
+CFLAGS ?= -Wall -Wextra -g -O2 -pipe
+ASFLAGS ?= -F dwarf -g
+LDFLAGS ?=
 
-CHARDFLAGS := ${CFLAGS} -std=gnu11 -fplan9-extensions -masm=intel \
-	-fno-pic -fpie \
-    -mgeneral-regs-only \
-    -mno-red-zone -ffreestanding \
-    -fno-stack-protector
-ASHARDFLAGS   := ${ASFLAGS} -felf64
-LDHARDFLAGS   := ${LDFLAGS} \
+override CHARDFLAGS := \
+	-I. \
+	-std=gnu11 \
+	-ffreestanding \
+	-fplan9-extensions \
+	-fno-pic \
+	-fno-stack-protector \
+	-fno-strict-aliasing \
+	-mabi=sysv \
+	-masm=intel \
+	-mgeneral-regs-only \
+	-mno-red-zone \
+	-mcmodel=kernel \
+	-MMD
+
+override ASHARDFLAGS := \
+	-I$(shell pwd) \
+	-felf64
+
+override LDHARDFLAGS := \
+	-Tlinker.ld \
 	-nostdlib \
-	-shared \
-	-pie -fno-pic -fpie \
-	-z max-page-size=0x1000
-QEMUHARDFLAGS := ${QEMUFLAGS}
+	-z max-page-size=0x1000 \
+	-static
 
 # Source to compile.
-CSOURCE   := $(shell find ${REPODIR} -type f -name '*.c')
-ASMSOURCE := $(shell find ${REPODIR} -type f -name '*.asm')
-OBJ       := $(CSOURCE:.c=.o) $(ASMSOURCE:.asm=.o)
+override CSOURCE := $(shell find ./ -type f -name '*.c')
+override ASMSOURCE := $(shell find ./ -type f -name '*.asm')
+override OBJ := $(CSOURCE:.c=.o) $(ASMSOURCE:.asm=.o)
+override HEADER_DEPS := $(CSOURCE:.c=.d)
 
-.PHONY: all run clean distclean
-
-all: ${KERNEL}
+.PHONY: all
+all: $(KERNEL)
 
 .PHONY: install
 install:
 	install -d "$(DESTDIR)$(PREFIX)"
 	install -s $(KERNEL) "$(DESTDIR)$(PREFIX)/"
 
-${KERNEL}: ${OBJ}
-	${CC} ${LDHARDFLAGS} ${OBJ} -T ${REPODIR}/linker.ld -o $@
+$(KERNEL): $(OBJ)
+	$(LD) $(OBJ) $(LDFLAGS) $(LDHARDFLAGS) -o $@
 
+-include $(HEADER_DEPS)
 %.o: %.c
-	${CC} ${CHARDFLAGS} -I${REPODIR} -c $< -o $@
+	$(CC) $(CFLAGS) $(CHARDFLAGS) -c $< -o $@
 
 %.o: %.asm
-	${AS} ${ASHARDFLAGS} -I${REPODIR} $< -o $@
+	$(AS) $(ASFLAGS) $(ASHARDFLAGS) $< -o $@
 
+.PHONY: clean
 clean:
-	rm -rf ${OBJ} ${KERNEL} ${IMAGE}
+	rm -rf $(OBJ) $(KERNEL) $(HEADER_DEPS)

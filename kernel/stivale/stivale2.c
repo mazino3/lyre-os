@@ -21,13 +21,13 @@ static struct stivale2_header_tag_framebuffer framebuffer_hdr_tag = {
     .framebuffer_bpp    = 0
 };
 
-static uint8_t initial_stack[4096];
+static uint8_t initial_stack[8192];
 
 __attribute__((section(".stivale2hdr"), used))
 static struct stivale2_header stivale_hdr = {
     .entry_point = 0,
     .stack = (uintptr_t)initial_stack + sizeof(initial_stack),
-    .flags = 0,
+    .flags = (1 << 4),
     .tags = (uintptr_t)&framebuffer_hdr_tag
 };
 

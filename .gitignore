@@ -2,6 +2,7 @@ ovmf
 build
 3rdparty
 *.o
+*.d
 *.bin
 *.elf
 *gz

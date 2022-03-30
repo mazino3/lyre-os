@@ -39,8 +39,8 @@ sources:
   - name: limine
     subdir: '3rdparty'
     git: 'https://github.com/limine-bootloader/limine.git'
-    tag: 'v2.80.2'
-    version: '2.80.2'
+    tag: 'v2.90'
+    version: '2.90'
     tools_required:
       - host-autoconf-v2.69
       - host-automake-v1.16
@@ -52,8 +52,8 @@ sources:
   - name: binutils
     subdir: '3rdparty'
     git: 'https://sourceware.org/git/binutils-gdb.git'
-    tag: 'binutils-2_37'
-    version: '2.37'
+    tag: 'binutils-2_38'
+    version: '2.38'
     tools_required:
       - host-autoconf-v2.69
       - host-automake-v1.16

@@ -11,26 +11,25 @@
 #include <mm/vmm.h>
 
 struct plainfb_dumb_buffer {
-	uint32_t height;
-	uint32_t width;
-	uint32_t bpp;
-	uint32_t flags;
-	uint32_t handle;
-	uint32_t pitch;
-	uint64_t size;
+    uint32_t height;
+    uint32_t width;
+    uint32_t bpp;
+    uint32_t flags;
+    uint32_t handle;
+    uint32_t pitch;
+    uint64_t size;
     bool valid;
 
     void* buffer;
 };
 
 struct plainfb_fb {
-	uint32_t width;
-	uint32_t height;
-	uint32_t pitch;
-	uint32_t bpp;
-	uint32_t depth;
+    uint32_t width;
+    uint32_t height;
+    uint32_t pitch;
+    uint32_t bpp;
+    uint32_t depth;
     uint32_t dumb_buffer_off;
-
     bool valid;
 };
 
@@ -266,6 +265,8 @@ static bool rawfb_mmap_hit(struct resource *this, struct mmap_range_local *range
 
 void init_rawfbdev(struct stivale2_struct_tag_framebuffer *framebuffer_tag) {
     struct drm_device *dri = resource_create(sizeof(struct drm_device));
+    dri->st.st_mode = 0644 | S_IFCHR;
+    dri->st.st_rdev = dev_new_id();
     dri->ioctl = rawfb_ioctl;
     dri->mmap_hit  = rawfb_mmap_hit;
     dri->num_crtcs = 1;

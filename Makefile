@@ -36,11 +36,15 @@ distro:
 	cd build && [ -f bootstrap.link ] || xbstrap init ..
 	cd build && xbstrap install -u --all
 
+.PHONY: base-files
+base-files: build
+	cd build && xbstrap install --rebuild base-files
+
 .PHONY: kernel
 kernel:
 	cd build && xbstrap install --rebuild kernel
 
-lyre.iso: kernel
+lyre.iso: kernel base-files
 	cd build && xbstrap run make-iso
 	mv build/lyre.iso ./
 

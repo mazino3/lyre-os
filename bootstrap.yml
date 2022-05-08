@@ -11,23 +11,23 @@ sources:
   - name: tzdata
     subdir: '3rdparty'
     sources_required: ['tzcode']
-    url: 'https://data.iana.org/time-zones/releases/tzdata2021e.tar.gz'
+    url: 'https://data.iana.org/time-zones/releases/tzdata2022a.tar.gz'
     format: 'tar.gz'
-    version: '2021e'
+    version: '2022a'
     regenerate:
       - args: ['cp', '-r', '@THIS_SOURCE_DIR@/../tzcode/.', '@THIS_SOURCE_DIR@/']
 
   - name: tzcode
     subdir: '3rdparty'
-    url: 'https://data.iana.org/time-zones/releases/tzcode2021e.tar.gz'
+    url: 'https://data.iana.org/time-zones/releases/tzcode2022a.tar.gz'
     format: 'tar.gz'
-    version: '2021e'
+    version: '2022a'
 
   - name: ncurses
     subdir: '3rdparty'
     git: 'https://github.com/ThomasDickey/ncurses-snapshots.git'
-    tag: 'v6_3'
-    version: '6.3'
+    tag: 'v6_3_20220507'
+    version: '6.3.20220507'
     tools_required:
       - host-autoconf-v2.69
       - host-automake-v1.16
@@ -65,8 +65,8 @@ sources:
   - name: gcc
     subdir: '3rdparty'
     git: 'https://gcc.gnu.org/git/gcc.git'
-    tag: 'releases/gcc-11.2.0'
-    version: '11.2.0'
+    tag: 'releases/gcc-11.3.0'
+    version: '11.3.0'
     tools_required:
       - host-autoconf-v2.69
       - host-automake-v1.16
@@ -130,7 +130,7 @@ tools:
         - args: ['./bootstrap']
         - args: |
             set -e
-            git clone https://github.com/autoconf-archive/autoconf-archive.git --branch=v2021.02.19 --depth=1
+            git clone https://github.com/autoconf-archive/autoconf-archive.git --branch=v2022.02.11 --depth=1
     tools_required:
       - host-autoconf-v2.69
     configure:
@@ -154,8 +154,8 @@ tools:
       name: libtool
       subdir: '3rdparty'
       git: 'https://git.savannah.gnu.org/git/libtool.git'
-      tag: 'v2.4.6'
-      version: '2.4.6'
+      tag: 'v2.4.7'
+      version: '2.4.7'
       sources_required: ['gnulib']
       tools_required:
         - host-autoconf-v2.69
@@ -200,7 +200,6 @@ tools:
         - '--with-sysroot=@SYSROOT_DIR@'
         # On recent compilers, binutils 2.26 causes implicit-fallthrough warnings, among others.
         - '--disable-werror'
-        - '--enable-targets=x86_64-elf,x86_64-pe'
         # -g blows up the binary size.
         - 'CFLAGS=-O2 -pipe'
     compile:
@@ -491,8 +490,8 @@ packages:
     source:
       subdir: '3rdparty'
       git: 'https://git.savannah.gnu.org/git/coreutils.git'
-      tag: 'v9.0'
-      version: '9.0'
+      tag: 'v9.1'
+      version: '9.1'
       sources_required: ['gnulib']
       tools_required:
         - host-autoconf-v2.69

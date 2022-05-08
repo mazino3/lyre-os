@@ -1,6 +1,6 @@
-From 2a8ed66e94cd869a56591c3e5fcc503c913b89b7 Mon Sep 17 00:00:00 2001
+From f6112aa1f0b070ed99251508a94824ba4540bdae Mon Sep 17 00:00:00 2001
 From: mintsuki <mintsuki@protonmail.com>
-Date: Mon, 27 Dec 2021 11:29:01 +0100
+Date: Sun, 8 May 2022 21:32:34 +0200
 Subject: [PATCH] Lyre specific changes
 
 ---
@@ -8,10 +8,10 @@ Subject: [PATCH] Lyre specific changes
  1 file changed, 4 insertions(+)
 
 diff --git a/configure b/configure
-index 421cf85..30c35c4 100755
+index 18928eb..2ddd791 100755
 --- a/configure
 +++ b/configure
-@@ -6423,6 +6423,10 @@ CF_EOF
+@@ -6460,6 +6460,10 @@ CF_EOF
  		LINK_PROGS="$SHELL ${rel_builddir}/mk_prog.sh"
  		LINK_TESTS="$SHELL ${rel_builddir}/mk_prog.sh"
  		;;
@@ -23,5 +23,5 @@ index 421cf85..30c35c4 100755
  		cf_cv_shlib_version=mingw
  		cf_cv_shlib_version_infix=mingw
 -- 
-2.34.1
+2.35.1
 

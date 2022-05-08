@@ -1,6 +1,6 @@
-From 898226deb8d913cbdfc75d9182f4e5951ca7e304 Mon Sep 17 00:00:00 2001
+From 805fbf15052687829829a4736745ea5e7ffeb3ce Mon Sep 17 00:00:00 2001
 From: mintsuki <mintsuki@protonmail.com>
-Date: Mon, 27 Dec 2021 11:24:51 +0100
+Date: Sun, 8 May 2022 21:06:35 +0200
 Subject: [PATCH] Lyre specific changes
 
 ---
@@ -9,10 +9,10 @@ Subject: [PATCH] Lyre specific changes
  2 files changed, 16 insertions(+), 1 deletion(-)
 
 diff --git a/build-aux/ltmain.in b/build-aux/ltmain.in
-index d5cf07a..ce97a5f 100644
+index a5f21a1..c06d55c 100644
 --- a/build-aux/ltmain.in
 +++ b/build-aux/ltmain.in
-@@ -6449,7 +6449,7 @@ func_mode_link ()
+@@ -6497,7 +6497,7 @@ func_mode_link ()
  	      fi
  	    else
  	      # We cannot seem to hardcode it, guess we'll fake it.
@@ -22,10 +22,10 @@ index d5cf07a..ce97a5f 100644
  	      if test -n "$inst_prefix_dir"; then
  		case $libdir in
 diff --git a/m4/libtool.m4 b/m4/libtool.m4
-index a3bc337..85c72cc 100644
+index 79a2451..68fc07d 100644
 --- a/m4/libtool.m4
 +++ b/m4/libtool.m4
-@@ -2905,6 +2905,17 @@ netbsd*)
+@@ -2925,6 +2925,17 @@ netbsd*)
    hardcode_into_libs=yes
    ;;
  
@@ -43,7 +43,7 @@ index a3bc337..85c72cc 100644
  newsos6)
    version_type=linux # correct to gnu/linux during the next big refactor
    library_names_spec='$libname$release$shared_ext$versuffix $libname$release$shared_ext$major $libname$shared_ext'
-@@ -3546,6 +3557,10 @@ linux* | k*bsd*-gnu | kopensolaris*-gnu | gnu*)
+@@ -3566,6 +3577,10 @@ linux* | k*bsd*-gnu | kopensolaris*-gnu | gnu*)
    lt_cv_deplibs_check_method=pass_all
    ;;
  
@@ -55,5 +55,5 @@ index a3bc337..85c72cc 100644
    if echo __ELF__ | $CC -E - | $GREP __ELF__ > /dev/null; then
      lt_cv_deplibs_check_method='match_pattern /lib[[^/]]+(\.so\.[[0-9]]+\.[[0-9]]+|_pic\.a)$'
 -- 
-2.34.1
+2.35.1
 
